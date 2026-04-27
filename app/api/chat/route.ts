@@ -100,26 +100,49 @@ export async function POST(req: Request) {
   // Stream the response as Server-Sent Events. The first event is the
   // retrieval payload (so the UI can render source cards immediately while
   // the model is still warming up); subsequent events are text deltas.
+  // We hook the client's AbortSignal so a disconnect aborts the upstream
+  // Anthropic stream too — without this, the model keeps generating into
+  // a closed pipe and we leak both the connection and the API call.
   const encoder = new TextEncoder();
+  const c = client();
+  const llmStream = c.messages.stream({
+    model: CHAT_MODEL,
+    max_tokens: 4096,
+    system: systemBlocks,
+    messages: apiMessages,
+  });
+
+  let clientGone = false;
+  req.signal.addEventListener(
+    "abort",
+    () => {
+      clientGone = true;
+      // The Anthropic SDK exposes an abort method on streams.
+      llmStream.controller?.abort();
+    },
+    { once: true },
+  );
+
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
       const send = (event: string, data: unknown) => {
-        controller.enqueue(
-          encoder.encode(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`),
-        );
+        if (clientGone) return;
+        try {
+          controller.enqueue(
+            encoder.encode(
+              `event: ${event}\ndata: ${JSON.stringify(data)}\n\n`,
+            ),
+          );
+        } catch {
+          // Controller already closed — client disconnected. Mark as gone
+          // so subsequent send() calls become no-ops.
+          clientGone = true;
+        }
       };
 
       send("sources", { sources: retrieved });
 
       try {
-        const c = client();
-        const llmStream = c.messages.stream({
-          model: CHAT_MODEL,
-          max_tokens: 4096,
-          system: systemBlocks,
-          messages: apiMessages,
-        });
-
         llmStream.on("text", (delta) => {
           send("text", { delta });
         });
@@ -135,6 +158,9 @@ export async function POST(req: Request) {
           },
         });
       } catch (err) {
+        // If the client disconnected, the SDK throws an abort-shaped error;
+        // we don't need to surface that as a user-visible error event.
+        if (clientGone) return;
         const msg =
           err instanceof Anthropic.APIError
             ? `${err.status ?? "?"} — ${err.message}`
@@ -143,8 +169,19 @@ export async function POST(req: Request) {
               : "unknown error";
         send("error", { message: msg });
       } finally {
-        controller.close();
+        try {
+          controller.close();
+        } catch {
+          // Already closed.
+        }
       }
+    },
+    cancel() {
+      // The platform invokes cancel() when the consumer (browser) closes
+      // its side of the stream — abort the upstream call here too as a
+      // belt-and-braces second path beyond req.signal.
+      clientGone = true;
+      llmStream.controller?.abort();
     },
   });
 

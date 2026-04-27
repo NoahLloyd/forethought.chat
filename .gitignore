@@ -34,3 +34,4 @@ next-env.d.ts
 
 # scraped content cache (raw HTML); processed JSON is committed
 /data/raw/
+.vercel
