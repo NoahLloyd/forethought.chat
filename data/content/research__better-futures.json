@@ -16,7 +16,39 @@
     "Macrostrategy"
   ],
   "publishedAt": "2025-08-04",
-  "series": null,
+  "series": {
+    "title": "Better Futures",
+    "slug": null,
+    "totalParts": 6,
+    "currentIndex": null,
+    "parts": [
+      {
+        "slug": "introducing-better-futures",
+        "title": "Introducing Better Futures"
+      },
+      {
+        "slug": "no-easy-eutopia",
+        "title": "No Easy Eutopia"
+      },
+      {
+        "slug": "convergence-and-compromise",
+        "title": "Convergence and Compromise"
+      },
+      {
+        "slug": "persistent-path-dependence",
+        "title": "Persistent Path-Dependence"
+      },
+      {
+        "slug": "how-to-make-the-future-better",
+        "title": "How to Make the Future Better"
+      },
+      {
+        "slug": "supplement-the-basic-case-for-better-futures",
+        "title": "Supplement: The Basic Case for Better Futures"
+      }
+    ],
+    "overview": null
+  },
   "links": {
     "podcast": "https://pinecast.com/player/13488a6c-e553-41ff-bdf9-f82f5eac4cfa",
     "podcastTitle": "Should We Aim for Flourishing Over Mere Survival? (with Will MacAskill)",
@@ -29,5 +61,5 @@
   "body": "# Better Futures\n\n**Abstract.** Suppose we want the future to go better. What should we do?\n\nOne approach is to avoid near-term catastrophes, like  human extinction. This essay series explores a different, complementary, approach: improving on futures where we survive, to achieve a truly great future.\n\nSuppose we want the future to go better. What should we do?\n\nOne approach is to avoid near-term catastrophes, like  human extinction. This essay series explores a different, complementary, approach: improving on futures where we survive, to achieve a truly *great* future.\n\nThere are five main sections, plus a supplement. The main sections are designed to be read in order, beginning with “Introducing Better Futures”.",
   "text": "Better Futures Abstract. Suppose we want the future to go better. What should we do? One approach is to avoid near-term catastrophes, like human extinction. This essay series explores a different, complementary, approach: improving on futures where we survive, to achieve a truly great future. Suppose we want the future to go better. What should we do? One approach is to avoid near-term catastrophes, like human extinction. This essay series explores a different, complementary, approach: improving on futures where we survive, to achieve a truly great future. There are five main sections, plus a supplement. The main sections are designed to be read in order, beginning with “Introducing Better Futures”.",
   "wordCount": 110,
-  "scrapedAt": "2026-04-27T16:33:31.864Z"
+  "scrapedAt": "2026-04-27T17:38:52.059Z"
 }

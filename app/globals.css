@@ -1,32 +1,33 @@
 @import "tailwindcss";
 
 /*
- * Forethought.chat — design tokens.
+ * Forethought.chat — design tokens lifted from forethought.org.
  *
- * Inspired by Anthropic's editorial palette: warm paper background, dark
- * espresso text, a single coral accent, and a typographic system that pairs
- * a serif for body / display with a small mono for citations.
+ * Forethought's site uses Signifier (Klim) for serif and TT Hoves
+ * (TypeType) for sans — both commercial fonts. We approximate with
+ * Newsreader and DM Sans from Google Fonts; if the real fonts are
+ * licensed, swap the family names below.
  */
 
 @theme {
-  --color-paper: #f5f1ea;
-  --color-paper-deep: #ebe4d6;
-  --color-paper-soft: #faf6ef;
-  --color-ink: #181818;
-  --color-ink-muted: #6b6760;
-  --color-ink-faint: #97928a;
-  --color-rule: #d8cfbf;
-  --color-rule-soft: #e7dfd0;
-  --color-coral: #cc785c;
-  --color-coral-deep: #a85a40;
-  --color-coral-tint: #f3d9c8;
+  --color-paper: #fbfaf4;
+  --color-paper-deep: #eeece4;
+  --color-paper-soft: #fffefd;
+  --color-ink: #2f2a26;
+  --color-ink-muted: #757371;
+  --color-ink-faint: #a8a6a3;
+  --color-rule: #dfdfdf;
+  --color-rule-soft: #eeece4;
+  --color-coral: #ff6f43;
+  --color-coral-deep: #852204;
+  --color-coral-tint: #ffaf96;
   --color-leaf: #5d6b4d;
 
-  --font-sans: "Söhne", "Inter", ui-sans-serif, system-ui, sans-serif;
-  --font-serif: "Tiempos Text", "Source Serif 4", "Source Serif Pro",
-    "Iowan Old Style", "Apple Garamond", Garamond, "Times New Roman", serif;
-  --font-display: "Tiempos Headline", "Source Serif 4", "Source Serif Pro",
-    "Iowan Old Style", Garamond, "Times New Roman", serif;
+  --font-sans: "DM Sans", ui-sans-serif, system-ui, Arial, sans-serif;
+  --font-serif: "Newsreader", "Source Serif 4", "Iowan Old Style",
+    "Times New Roman", serif;
+  --font-display: "Newsreader", "Source Serif 4", "Iowan Old Style",
+    "Times New Roman", serif;
   --font-mono: "JetBrains Mono", "IBM Plex Mono", ui-monospace,
     SFMono-Regular, Menlo, monospace;
 
@@ -46,11 +47,7 @@ body {
   font-family: var(--font-serif);
   font-size: 17px;
   line-height: 1.55;
-  background:
-    radial-gradient(1200px 800px at 80% -10%, rgba(204, 120, 92, 0.07), transparent 60%),
-    radial-gradient(900px 600px at -10% 110%, rgba(93, 107, 77, 0.06), transparent 60%),
-    var(--color-paper);
-  background-attachment: fixed;
+  background: var(--color-paper);
 }
 
 ::selection {
@@ -155,22 +152,156 @@ a {
 }
 
 /* Citation chips inside assistant prose — `[1]`, `[2,3]` etc. */
-.prose-forethought sup.cite {
-  font-family: var(--font-mono);
-  font-size: 0.7em;
+.prose-forethought .cite-chip {
+  position: relative;
+  display: inline-block;
+  font-family: var(--font-sans);
+  font-size: 0.72em;
   font-weight: 500;
+  line-height: 1;
   color: var(--color-coral-deep);
   background: var(--color-coral-tint);
-  padding: 1px 5px;
+  padding: 2px 6px;
   border-radius: 4px;
   margin: 0 1px;
   vertical-align: super;
   cursor: pointer;
   text-decoration: none;
+  transition:
+    background 0.12s ease,
+    color 0.12s ease,
+    transform 0.12s ease,
+    box-shadow 0.12s ease;
 }
-.prose-forethought sup.cite:hover {
+.prose-forethought .cite-chip:hover,
+.prose-forethought .cite-chip:focus-visible {
   background: var(--color-coral);
   color: white;
+  outline: none;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px -2px rgba(255, 111, 67, 0.45);
+}
+.prose-forethought .cite-chip .cite-marker {
+  display: inline-block;
+}
+.prose-forethought .cite-missing {
+  background: var(--color-paper-deep);
+  color: var(--color-ink-faint);
+  cursor: help;
+}
+
+/* Citation popover — fades in above the chip on hover/focus. */
+.prose-forethought .cite-popover {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%) translateY(4px);
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 6px;
+  width: 320px;
+  max-width: 86vw;
+  padding: 12px 14px 10px;
+  background: var(--color-paper-soft);
+  border: 1px solid var(--color-rule);
+  border-radius: 12px;
+  box-shadow:
+    0 12px 32px -10px rgba(47, 42, 38, 0.22),
+    0 2px 6px -2px rgba(47, 42, 38, 0.08);
+  font-family: var(--font-sans);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.45;
+  color: var(--color-ink);
+  text-align: left;
+  vertical-align: baseline;
+  white-space: normal;
+  pointer-events: none;
+  opacity: 0;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease;
+  z-index: 40;
+}
+.prose-forethought .cite-popover::after {
+  content: "";
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 12px;
+  height: 6px;
+  background:
+    linear-gradient(135deg, transparent 50%, var(--color-paper-soft) 50%) left
+      / 50% 100% no-repeat,
+    linear-gradient(45deg, var(--color-paper-soft) 50%, transparent 50%) right
+      / 50% 100% no-repeat;
+  filter: drop-shadow(0 1px 0 var(--color-rule));
+}
+.prose-forethought .cite-chip:hover .cite-popover,
+.prose-forethought .cite-chip:focus-visible .cite-popover,
+.prose-forethought .cite-chip:focus-within .cite-popover {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+  pointer-events: auto;
+  transition-delay: 0.08s;
+}
+.prose-forethought .cite-popover-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+.prose-forethought .cite-popover-cat {
+  color: var(--color-coral-deep);
+  font-weight: 500;
+}
+.prose-forethought .cite-popover-title {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 15px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  color: var(--color-ink);
+}
+.prose-forethought .cite-popover-authors {
+  display: block;
+  font-size: 11.5px;
+  color: var(--color-ink-muted);
+}
+.prose-forethought .cite-popover-snippet {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-family: var(--font-serif);
+  font-size: 12.5px;
+  font-style: italic;
+  line-height: 1.45;
+  color: var(--color-ink-muted);
+}
+.prose-forethought .cite-popover-actions {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  margin-top: 2px;
+  border-top: 1px solid var(--color-rule-soft);
+}
+.prose-forethought .cite-popover-action {
+  font-size: 11.5px;
+  font-weight: 500;
+  color: var(--color-coral-deep);
+}
+.prose-forethought .cite-popover-hint {
+  font-size: 10.5px;
+  color: var(--color-ink-faint);
+  font-family: var(--font-mono);
 }
 
 /* Subtle, slow caret blink for the streaming assistant turn */
@@ -228,4 +359,58 @@ input:focus {
 .source-card:hover {
   background: var(--color-paper-soft);
   border-color: var(--color-coral);
+}
+
+/* Brand wordmark — keeps the SVG baseline-aligned with the ".chat" text. */
+.brand-mark {
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
+}
+.brand-mark img {
+  display: block;
+  height: 1em;
+  width: auto;
+  align-self: end;
+  transform: translateY(0.06em);
+}
+
+/* Inline figures (assistant turns + article reader) */
+.prose-forethought .chat-figure {
+  margin: 1.4em -0.5em;
+  padding: 8px;
+  background: var(--color-paper-soft);
+  border: 1px solid var(--color-rule-soft);
+  border-radius: 10px;
+}
+.prose-forethought .chat-figure img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-width: 100%;
+  border-radius: 6px;
+  background: var(--color-paper);
+}
+.prose-forethought .chat-figure figcaption {
+  margin-top: 8px;
+  padding: 0 4px;
+  font-family: var(--font-sans);
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--color-ink-muted);
+  text-align: center;
+}
+
+/* Cited-passage highlight on the article reader */
+mark.cite-target {
+  background: var(--color-coral-tint);
+  color: var(--color-ink);
+  padding: 0 0.1em;
+  border-radius: 2px;
+  box-shadow: 0 0 0 0.2em var(--color-coral-tint);
+  animation: cite-pulse 1.4s ease-out 1;
+}
+@keyframes cite-pulse {
+  0%   { background: var(--color-coral); color: white; box-shadow: 0 0 0 0.4em var(--color-coral); }
+  100% { background: var(--color-coral-tint); color: var(--color-ink); box-shadow: 0 0 0 0.2em var(--color-coral-tint); }
 }
