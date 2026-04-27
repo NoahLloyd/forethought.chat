@@ -1,26 +1,51 @@
 import { NextResponse } from "next/server";
 import Anthropic from "@anthropic-ai/sdk";
 import { CHAT_MODEL, client } from "@/lib/anthropic";
-import { buildStablePreamble, formatExcerpts } from "@/lib/prompt";
+import { buildStablePreamble, formatSearchResult } from "@/lib/prompt";
 import { getCatalog, search } from "@/lib/search";
-import type { ChatMessage, SourceCard } from "@/lib/types";
+import type { ChatMessage, Chunk, SourceCard } from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 /**
- * Build a search query from the most recent user turn plus a small amount
- * of conversational context. Pulling a few prior turns into the query lets
- * BM25 catch follow-ups like "tell me more about that" without losing
- * specificity on the user's actual question.
+ * Tool-using agent loop.
+ *
+ * The model receives the persona + corpus catalog (cached) and a single
+ * `search` tool. It decides when and how often to retrieve excerpts before
+ * answering. We cap at MAX_ITERS so a confused model can't loop forever.
+ *
+ * Citation markers are assigned globally per request: the first chunk the
+ * model ever sees is [1], the next new chunk [2], and so on. Re-finding a
+ * chunk in a later search reuses its existing marker so [3] always points
+ * to the same passage no matter when the model first read it.
  */
-function makeRetrievalQuery(messages: ChatMessage[]): string {
-  const lastUser = [...messages].reverse().find((m) => m.role === "user");
-  if (!lastUser) return "";
-  const lastAssistant = [...messages].reverse().find((m) => m.role === "assistant");
-  if (!lastAssistant) return lastUser.content;
-  return `${lastAssistant.content.slice(-400)}\n\n${lastUser.content}`;
-}
+const MAX_ITERS = 6;
+const SEARCH_DEFAULT_K = 6;
+const SEARCH_MAX_K = 10;
+
+const SEARCH_TOOL: Anthropic.Tool = {
+  name: "search",
+  description:
+    "Search the Forethought corpus for excerpts relevant to a query. Returns numbered excerpts with citation markers ([N]) you can use directly in your answer. Call this multiple times in one turn to broaden, narrow, or follow up — each call returns its own batch of excerpts.",
+  input_schema: {
+    type: "object",
+    properties: {
+      query: {
+        type: "string",
+        description:
+          "A focused search query — the user's actual phrasing, or a tight paraphrase aimed at the topic. Avoid stop-words and filler.",
+      },
+      k: {
+        type: "integer",
+        description: `How many excerpts to return. Default ${SEARCH_DEFAULT_K}, max ${SEARCH_MAX_K}.`,
+        minimum: 1,
+        maximum: SEARCH_MAX_K,
+      },
+    },
+    required: ["query"],
+  },
+};
 
 function makeSnippet(text: string, max = 280): string {
   const cleaned = text.replace(/\s+/g, " ").trim();
@@ -30,6 +55,42 @@ function makeSnippet(text: string, max = 280): string {
   const cutoff = window.lastIndexOf(". ");
   if (cutoff > max - 80 && cutoff < max + 80) return window.slice(0, cutoff + 1);
   return cleaned.slice(0, max).trimEnd() + "…";
+}
+
+/**
+ * Place an ephemeral cache breakpoint on the most recent tool_result block,
+ * stripping any breakpoints we set on earlier blocks. Combined with the
+ * system-prompt breakpoint, this caches the whole prefix up through the
+ * last tool result so iteration N+1 reuses iteration N's work. Anthropic
+ * caps cache breakpoints per request at 4; this strategy keeps us at 2.
+ */
+function applyMessageCacheControl(messages: Anthropic.MessageParam[]): void {
+  for (const m of messages) {
+    if (typeof m.content === "string") continue;
+    for (const block of m.content) {
+      if (
+        typeof block === "object" &&
+        block !== null &&
+        "cache_control" in block
+      ) {
+        delete (block as { cache_control?: unknown }).cache_control;
+      }
+    }
+  }
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const m = messages[i];
+    if (m.role !== "user" || typeof m.content === "string") continue;
+    const blocks = m.content;
+    for (let j = blocks.length - 1; j >= 0; j--) {
+      const b = blocks[j];
+      if (b.type === "tool_result") {
+        (b as { cache_control?: { type: "ephemeral" } }).cache_control = {
+          type: "ephemeral",
+        };
+        return;
+      }
+    }
+  }
 }
 
 export async function POST(req: Request) {
@@ -54,52 +115,24 @@ export async function POST(req: Request) {
     );
   }
 
-  // Retrieve top chunks for the latest user turn.
-  const query = makeRetrievalQuery(messages);
-  const hits = await search(query, 12);
-  const retrieved: SourceCard[] = hits.map((h, i) => ({
-    marker: i + 1,
-    url: h.chunk.url,
-    title: h.chunk.title,
-    category: h.chunk.category,
-    authors: h.chunk.authors,
-    publishedAt: h.chunk.publishedAt,
-    section: h.chunk.section,
-    snippet: makeSnippet(h.chunk.text),
-  }));
-
   const catalog = await getCatalog();
   const preamble = buildStablePreamble(catalog);
-  const excerpts = formatExcerpts(hits.map((h) => h.chunk));
 
-  // The system prompt is built as two blocks so the cache key only covers
-  // the stable preamble. The retrieved excerpts are appended in a second
-  // block with no cache_control — they invalidate per request, but the
-  // preamble (~5-10k tokens with the catalog) stays cached for 5 minutes
-  // and is reused across every conversation.
+  // System prompt is a single cached block. Excerpts no longer live here —
+  // they come back as tool_result blocks in the conversation.
   const systemBlocks: Anthropic.TextBlockParam[] = [
     {
       type: "text",
       text: preamble,
       cache_control: { type: "ephemeral" },
     },
-    {
-      type: "text",
-      text: excerpts,
-    },
   ];
 
-  // Forward conversation history. We don't add a second cache breakpoint
-  // here — Forethought sessions are usually short and the savings would be
-  // marginal compared to the preamble-cache hit we already get.
   const apiMessages: Anthropic.MessageParam[] = messages.map((m) => ({
     role: m.role,
     content: m.content,
   }));
 
-  // Stream the response as Server-Sent Events. The first event is the
-  // retrieval payload (so the UI can render source cards immediately while
-  // the model is still warming up); subsequent events are text deltas.
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
     async start(controller) {
@@ -109,30 +142,153 @@ export async function POST(req: Request) {
         );
       };
 
-      send("sources", { sources: retrieved });
+      // Per-request citation registry. `seen` maps chunk id → assigned card
+      // so re-finding the same chunk in a later search keeps the marker
+      // stable. `nextMarker` is the next free integer.
+      const seen = new Map<string, SourceCard>();
+      let nextMarker = 1;
+
+      const totals = {
+        inputTokens: 0,
+        outputTokens: 0,
+        cacheCreationTokens: 0,
+        cacheReadTokens: 0,
+      };
+
+      let iter = 0;
+      let lastStop: string | null = null;
+      let truncated = false;
 
       try {
         const c = client();
-        const llmStream = c.messages.stream({
-          model: CHAT_MODEL,
-          max_tokens: 4096,
-          system: systemBlocks,
-          messages: apiMessages,
-        });
 
-        llmStream.on("text", (delta) => {
-          send("text", { delta });
-        });
+        while (iter < MAX_ITERS) {
+          iter++;
+          applyMessageCacheControl(apiMessages);
 
-        const final = await llmStream.finalMessage();
+          const llmStream = c.messages.stream({
+            model: CHAT_MODEL,
+            max_tokens: 4096,
+            system: systemBlocks,
+            messages: apiMessages,
+            tools: [SEARCH_TOOL],
+          });
+
+          llmStream.on("text", (delta) => {
+            send("text", { delta });
+          });
+
+          const final = await llmStream.finalMessage();
+
+          totals.inputTokens += final.usage.input_tokens;
+          totals.outputTokens += final.usage.output_tokens;
+          totals.cacheCreationTokens +=
+            final.usage.cache_creation_input_tokens ?? 0;
+          totals.cacheReadTokens += final.usage.cache_read_input_tokens ?? 0;
+
+          lastStop = final.stop_reason ?? null;
+
+          // Persist the assistant turn (text + any tool_use blocks) into
+          // history so the next iteration sees it.
+          apiMessages.push({ role: "assistant", content: final.content });
+
+          if (lastStop !== "tool_use") break;
+
+          const toolResultBlocks: Anthropic.ToolResultBlockParam[] = [];
+          for (const block of final.content) {
+            if (block.type !== "tool_use") continue;
+            if (block.name === "search") {
+              const input = (block.input ?? {}) as {
+                query?: unknown;
+                k?: unknown;
+              };
+              const query =
+                typeof input.query === "string" ? input.query.trim() : "";
+              const k = Math.min(
+                Math.max(
+                  typeof input.k === "number" ? Math.floor(input.k) : SEARCH_DEFAULT_K,
+                  1,
+                ),
+                SEARCH_MAX_K,
+              );
+
+              send("tool_call", { name: "search", query });
+
+              let content: string;
+              let isError = false;
+              try {
+                if (!query) {
+                  content = formatSearchResult("", []);
+                } else {
+                  const hits = await search(query, k);
+                  const numbered: Array<{ chunk: Chunk; marker: number }> = [];
+                  let addedAny = false;
+                  for (const h of hits) {
+                    let card = seen.get(h.chunk.id);
+                    if (!card) {
+                      card = {
+                        marker: nextMarker++,
+                        url: h.chunk.url,
+                        title: h.chunk.title,
+                        category: h.chunk.category,
+                        authors: h.chunk.authors,
+                        publishedAt: h.chunk.publishedAt,
+                        section: h.chunk.section,
+                        snippet: makeSnippet(h.chunk.text),
+                      };
+                      seen.set(h.chunk.id, card);
+                      addedAny = true;
+                    }
+                    numbered.push({ chunk: h.chunk, marker: card.marker });
+                  }
+                  content = formatSearchResult(query, numbered);
+                  if (addedAny) {
+                    send("sources", {
+                      sources: [...seen.values()].sort(
+                        (a, b) => a.marker - b.marker,
+                      ),
+                    });
+                  }
+                }
+              } catch (err) {
+                isError = true;
+                content = `Search failed: ${
+                  err instanceof Error ? err.message : "unknown error"
+                }`;
+              }
+
+              toolResultBlocks.push({
+                type: "tool_result",
+                tool_use_id: block.id,
+                content,
+                ...(isError ? { is_error: true } : {}),
+              });
+            } else {
+              toolResultBlocks.push({
+                type: "tool_result",
+                tool_use_id: block.id,
+                content: `Unknown tool: ${block.name}. Available tools: search.`,
+                is_error: true,
+              });
+            }
+          }
+
+          apiMessages.push({ role: "user", content: toolResultBlocks });
+        }
+
+        if (lastStop === "tool_use") {
+          // We hit the iteration cap with the model still wanting to search.
+          // Tell the user; the partial answer (if any) has already streamed.
+          truncated = true;
+          send("error", {
+            message: `agent stopped after ${MAX_ITERS} tool calls`,
+          });
+        }
+
         send("done", {
-          stopReason: final.stop_reason,
-          usage: {
-            inputTokens: final.usage.input_tokens,
-            outputTokens: final.usage.output_tokens,
-            cacheCreationTokens: final.usage.cache_creation_input_tokens ?? 0,
-            cacheReadTokens: final.usage.cache_read_input_tokens ?? 0,
-          },
+          stopReason: truncated ? "max_iterations" : lastStop,
+          iterations: iter,
+          usage: totals,
         });
       } catch (err) {
         const msg =

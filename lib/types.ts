@@ -69,17 +69,30 @@ export type ChatRequest = {
 };
 
 /**
- * Server-Sent-Events the API streams back, encoded one-per-line as JSON
- * (NDJSON). Three kinds:
- *   - `sources` arrives once, before any tokens, listing the cited chunks.
- *   - `delta` arrives many times with assistant text fragments.
- *   - `done` arrives exactly once at the end (no payload).
+ * Server-Sent-Events the API streams back. The agent calls the search tool
+ * zero or more times before answering, so events arrive interleaved:
+ *   - `tool_call` fires when the agent issues a search (one per call).
+ *   - `sources` fires after each search that finds new chunks; payload is
+ *     the cumulative source list, sorted by citation marker.
+ *   - `text` fires repeatedly with assistant prose deltas.
+ *   - `done` fires once at the end with stop reason and token usage.
  *   - `error` may replace any of the above on failure.
  */
 export type StreamEvent =
+  | { type: "tool_call"; name: "search"; query: string }
   | { type: "sources"; sources: SourceCard[] }
-  | { type: "delta"; text: string }
-  | { type: "done" }
+  | { type: "text"; delta: string }
+  | {
+      type: "done";
+      stopReason: string | null;
+      iterations: number;
+      usage: {
+        inputTokens: number;
+        outputTokens: number;
+        cacheCreationTokens: number;
+        cacheReadTokens: number;
+      };
+    }
   | { type: "error"; message: string };
 
 export type SourceCard = {

@@ -117,7 +117,7 @@ export function Chat() {
             const evType = eventLine.slice(7).trim();
             const data = JSON.parse(dataLine.slice(6));
             if (evType === "sources") {
-              sources = data.sources as Source[];
+              sources = data.sources as SourceCard[];
               setState((s) => ({
                 turns: s.turns.map((t) =>
                   t.role === "assistant" && t.id === assistantId
