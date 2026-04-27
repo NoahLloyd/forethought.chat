@@ -23,14 +23,16 @@ export type { CatalogEntry, Chunk, IndexFile, RetrievedChunk } from "./types";
 const BM25_K1 = 1.4;
 const BM25_B = 0.75;
 
-let cache: {
+type IndexCache = {
   payload: IndexFile;
   byId: Map<string, Chunk>;
   avgDl: number;
-} | null = null;
-let cachePromise: Promise<NonNullable<typeof cache>> | null = null;
+};
 
-async function load(): Promise<NonNullable<typeof cache>> {
+let cache: IndexCache | null = null;
+let cachePromise: Promise<IndexCache> | null = null;
+
+async function load(): Promise<IndexCache> {
   if (cache) return cache;
   if (cachePromise) return cachePromise;
   cachePromise = (async () => {
