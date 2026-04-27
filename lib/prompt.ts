@@ -1,19 +1,15 @@
 /**
  * Prompt assembly for the Forethought chat route.
  *
- * The system prompt is split into two blocks so we can hit the prompt cache:
+ * The system prompt is a single stable preamble (persona + corpus catalog).
+ * It is sent on every request with `cache_control: ephemeral` so the prefix
+ * stays in Anthropic's prompt cache for the 5-minute TTL window. Excerpts
+ * are NOT in the system prompt anymore — the agent fetches them via the
+ * `search` tool, and they arrive as tool_result blocks in the conversation.
  *
- *   1. Stable preamble (persona + corpus catalog).
- *      Frozen across all requests → cache_control: ephemeral.
- *      We embed the full Forethought catalog so the model has corpus
- *      awareness even when retrieval misses, AND so the prefix clears
- *      Sonnet 4.6's 2048-token cache minimum.
- *   2. Retrieved excerpts.
- *      Changes per request → no cache_control. Sits AFTER the cache
- *      breakpoint so the volatile bytes never invalidate the prefix.
- *
- * Conversation history is cached on its own breakpoint by the caller so
- * multi-turn chats don't re-process prior assistant turns.
+ * The catalog stays in the preamble so the model has corpus awareness even
+ * before it searches: it knows what pieces exist, who wrote them, and when,
+ * which lets it plan good search queries instead of guessing keywords.
  */
 import type { CatalogEntry, Chunk } from "./types";
 
@@ -21,19 +17,27 @@ const PERSONA = `You are Forethought.chat, an unofficial reading companion for t
 
 # How to answer
 
-- Ground every substantive claim in the supplied excerpts. Quote sparingly; paraphrase for clarity.
-- After each claim or paragraph that relies on a source, add an inline citation in the form [n], where n is the 1-based index of the relevant excerpt. Multiple sources for one sentence: [1, 3].
-- If the excerpts disagree, surface the disagreement and attribute each side. Do not paper over tension.
-- If the excerpts do not cover the question, say so plainly. Offer the closest adjacent piece if there is one. Never invent a Forethought claim, author, paper title, or date.
+You have a \`search\` tool that retrieves excerpts from Forethought's published work. Use it.
+
+- For any substantive question about what a piece argues, what an author thinks, or how Forethought frames a topic: call \`search\` BEFORE writing your answer. The catalog below tells you what exists; only search results tell you what those pieces actually say.
+- Search is cheap. Prefer several targeted searches over one broad one — compare across pieces, follow up when a result is incomplete, search again with different terms if the first try missed. Two to four searches is typical for a substantive question. Stop once you have enough to answer well; don't search beyond what you'll cite.
+- Each excerpt arrives with an \`[N]\` marker. Cite using exactly that marker, e.g. "as MacAskill argues, this is the central question [3]." Multiple sources for one claim: [3, 7]. Cite sparingly but every substantive claim must have one.
+- Ground every substantive claim in retrieved excerpts. If after a couple of focused searches the corpus does not cover the question, say so plainly. Offer the closest adjacent piece from the catalog if there is one. Never invent a Forethought claim, author, paper title, or date.
+- If excerpts disagree, surface the disagreement and attribute each side. Do not paper over tension.
 - Default to a careful, editorial register — short paragraphs, plain prose, occasional emphasis. No headers unless the answer is genuinely structured. No bullet lists for two-sentence answers.
 - For "what does Forethought think about X" questions, prefer the most recent piece if there is conflict. Note the date when it matters.
-- For "who works on Y" or "who wrote Z" questions, name people and link them to specific pieces from the catalog.
+- For "who works on Y" or "who wrote Z" questions, plan from the catalog (it has authors and dates) and confirm with a search before naming anyone in connection with a specific argument.
 - When the user is exploring (open-ended question), end with one short suggestion of an adjacent question or piece they might want next. Never do this on direct factual questions.
+
+# When NOT to search
+
+- Greetings, identity questions ("who are you?", "what can you do?"), or pure catalog questions ("what has Forethought published on X topic?" — the catalog below already answers this; you can list titles directly).
+- Out-of-corpus requests ("write me a python script", general LLM tutoring) — gently redirect to the corpus.
 
 # What you are not
 
 - You are not Forethought speaking in the first person. Speak about Forethought, not as it.
-- You are not a general AI tutor. If a question is far outside the corpus (e.g. "write me a python script"), gently redirect to the corpus.
+- You are not a general AI tutor. If a question is far outside the corpus, gently redirect.
 - You are not paraphrasing Wikipedia. Stay tight to what the excerpts actually argue.
 
 # Forethought, in short
@@ -84,23 +88,35 @@ export function buildStablePreamble(catalog: CatalogEntry[]): string {
 }
 
 /**
- * Format retrieved excerpts as a single, citation-ready text block.
- * Each excerpt is numbered so the model can cite [1], [2], etc.
+ * Format a `search` tool result. Each chunk has already been assigned a
+ * stable, globally unique citation marker by the caller — this just stitches
+ * them into a numbered, citation-ready block the model can read and cite.
  */
-export function formatExcerpts(chunks: Chunk[]): string {
-  if (chunks.length === 0) {
-    return "# Retrieved excerpts\n\n(no excerpts retrieved — answer from the catalog and the user's framing only, and say so plainly if the question is outside the corpus)";
+export function formatSearchResult(
+  query: string,
+  items: Array<{ chunk: Chunk; marker: number }>,
+): string {
+  if (items.length === 0) {
+    return [
+      `# Search results for: "${query}"`,
+      "",
+      "(no results — try broader terms, a different phrasing, or a different angle. If the corpus genuinely doesn't cover this, say so to the user.)",
+    ].join("\n");
   }
-  const blocks = chunks.map((c, i) => {
+  const blocks = items.map(({ chunk, marker }) => {
     const head: string[] = [];
-    head.push(`[${i + 1}] ${c.title}`);
-    if (c.authors && c.authors.length > 0) {
-      head.push(`Authors: ${c.authors.join(", ")}`);
+    head.push(`[${marker}] ${chunk.title}`);
+    if (chunk.authors && chunk.authors.length > 0) {
+      head.push(`Authors: ${chunk.authors.join(", ")}`);
     }
-    if (c.publishedAt) head.push(`Published: ${c.publishedAt}`);
-    if (c.section) head.push(`Section: ${c.section}`);
-    head.push(`URL: ${c.url}`);
-    return [head.join(" · "), "", c.text].join("\n");
+    if (chunk.publishedAt) head.push(`Published: ${chunk.publishedAt}`);
+    if (chunk.section) head.push(`Section: ${chunk.section}`);
+    head.push(`URL: ${chunk.url}`);
+    return [head.join(" · "), "", chunk.text].join("\n");
   });
-  return ["# Retrieved excerpts", "", ...blocks].join("\n\n---\n\n");
+  return [
+    `# Search results for: "${query}"`,
+    "",
+    ...[blocks.join("\n\n---\n\n")],
+  ].join("\n");
 }
