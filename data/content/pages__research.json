@@ -1,0 +1,25 @@
+{
+  "url": "https://www.forethought.org/research",
+  "category": "pages",
+  "slug": "research",
+  "type": null,
+  "title": "Research",
+  "description": "We are a research nonprofit focused on how to navigate the transition to a world with superintelligent AI systems.",
+  "authors": [],
+  "topics": [],
+  "publishedAt": null,
+  "series": null,
+  "links": {
+    "podcast": null,
+    "podcastTitle": null,
+    "podcastDurationSeconds": null,
+    "lesswrong": null,
+    "eaForum": null,
+    "preprint": null,
+    "sameAs": []
+  },
+  "body": "# Research\n\n# Our research\n\nHow should we navigate explosive AI progress?\n\n:button{href='#featured' label='Featured research'} &nbsp;&nbsp; :button{href='#research' label='All Research' variant='offwhite'}",
+  "text": "Research Our research How should we navigate explosive AI progress? :button{href=' featured' label='Featured research'} &nbsp;&nbsp; :button{href=' research' label='All Research' variant='offwhite'}",
+  "wordCount": 20,
+  "scrapedAt": "2026-04-27T16:33:20.742Z"
+}

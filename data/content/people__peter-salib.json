@@ -1,0 +1,33 @@
+{
+  "url": "https://www.forethought.org/people/peter-salib",
+  "category": "people",
+  "slug": "peter-salib",
+  "type": null,
+  "title": "Peter Salib",
+  "description": "Senior Visiting Scholar — [Peter Salib](https://www.peternsalib.com/) is an Assistant Professor of Law at the [University of Houston](https://www.law.uh.edu/faculty/main.asp?PID=6428). He is also Executive Co-Director of the [Center for Law and AI Risk](https://clai",
+  "authors": [
+    {
+      "name": "Peter Salib",
+      "slug": "peter-salib",
+      "role": "Senior Visiting Scholar"
+    }
+  ],
+  "topics": [],
+  "publishedAt": null,
+  "series": null,
+  "links": {
+    "podcast": null,
+    "podcastTitle": null,
+    "podcastDurationSeconds": null,
+    "lesswrong": null,
+    "eaForum": null,
+    "preprint": null,
+    "sameAs": [
+      "https://www.peternsalib.com/"
+    ]
+  },
+  "body": "# Peter Salib\n\n**Role:** Senior Visiting Scholar\n\n[Peter Salib](https://www.peternsalib.com/) is an Assistant Professor of Law at the [University of Houston](https://www.law.uh.edu/faculty/main.asp?PID=6428). He is also Executive Co-Director of the [Center for Law and AI Risk](https://clair-ai.org/), Law and Policy Advisor to the [Center for AI Safety](https://www.safe.ai/), Visiting Senior Fellow at the [Institute for Law & AI](https://law-ai.org/), Senior Visiting Scholar at Forethought, and a Contributing Editor at [Lawfare](https://www.lawfaremedia.org/contributors/psalib).\n\nPeter’s research investigates what law and legal institutions can do to help reduce catastrophic and existential risk from advanced AI systems. He is particularly interested in \"law as an alignment technology.\" Rule-of-law systems already produce game-theoretic equilibria in which powerful, misaligned agents (corporations, states) have incentives against bad behavior. He is developing frameworks for extending law to powerful AIs – giving them legal rights and duties – to similarly incentivize prosociality.",
+  "text": "Peter Salib Role: Senior Visiting Scholar Peter Salib is an Assistant Professor of Law at the University of Houston. He is also Executive Co-Director of the Center for Law and AI Risk, Law and Policy Advisor to the Center for AI Safety, Visiting Senior Fellow at the Institute for Law & AI, Senior Visiting Scholar at Forethought, and a Contributing Editor at Lawfare. Peter’s research investigates what law and legal institutions can do to help reduce catastrophic and existential risk from advanced AI systems. He is particularly interested in \"law as an alignment technology.\" Rule-of-law systems already produce game-theoretic equilibria in which powerful, misaligned agents (corporations, states) have incentives against bad behavior. He is developing frameworks for extending law to powerful AIs – giving them legal rights and duties – to similarly incentivize prosociality.",
+  "wordCount": 134,
+  "scrapedAt": "2026-04-27T16:33:32.053Z"
+}

@@ -1,0 +1,35 @@
+{
+  "url": "https://www.forethought.org/people/joe-carlsmith",
+  "category": "people",
+  "slug": "joe-carlsmith",
+  "type": null,
+  "title": "Joe Carlsmith",
+  "description": "Joe is a senior advisor at [Open Philanthropy](https://openphilanthropy.org/), and [writes independently](https://joecarlsmith.com/) about various topics in philosophy and futurism. He has a doctorate in philosophy from the University of Ox",
+  "authors": [
+    {
+      "name": "Joe Carlsmith",
+      "slug": "joe-carlsmith",
+      "role": null
+    }
+  ],
+  "topics": [],
+  "publishedAt": null,
+  "series": null,
+  "links": {
+    "podcast": null,
+    "podcastTitle": null,
+    "podcastDurationSeconds": null,
+    "lesswrong": null,
+    "eaForum": null,
+    "preprint": null,
+    "sameAs": [
+      "https://www.linkedin.com/in/joe-carlsmith-8ab07148/",
+      "https://joecarlsmith.com/",
+      "https://x.com/jkcarlsmith"
+    ]
+  },
+  "body": "# Joe Carlsmith\n\nJoe is a senior advisor at [Open Philanthropy](https://openphilanthropy.org/), and [writes independently](https://joecarlsmith.com/) about various topics in philosophy and futurism. He has a doctorate in philosophy from the University of Oxford.",
+  "text": "Joe Carlsmith Joe is a senior advisor at Open Philanthropy, and writes independently about various topics in philosophy and futurism. He has a doctorate in philosophy from the University of Oxford.",
+  "wordCount": 31,
+  "scrapedAt": "2026-04-27T16:33:32.901Z"
+}

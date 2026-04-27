@@ -1,0 +1,37 @@
+{
+  "name": "forethoughtchat",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Chat with Forethought's research, essays, and team writing.",
+  "scripts": {
+    "dev": "next dev --turbopack",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "typecheck": "tsc --noEmit",
+    "scrape": "tsx scripts/scrape.ts",
+    "index": "tsx scripts/index.ts",
+    "ingest": "pnpm scrape && pnpm index"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.35.0",
+    "cheerio": "^1.0.0",
+    "next": "15.1.6",
+    "p-limit": "^6.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-markdown": "^9.0.3",
+    "remark-gfm": "^4.0.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.0.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "postcss": "^8.4.49",
+    "tailwindcss": "^4.0.0",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  },
+  "packageManager": "pnpm@10.33.2"
+}

@@ -1,0 +1,35 @@
+{
+  "url": "https://www.forethought.org/people/daniel-eth",
+  "category": "people",
+  "slug": "daniel-eth",
+  "type": null,
+  "title": "Daniel Eth",
+  "description": "",
+  "authors": [
+    {
+      "name": "Daniel Eth",
+      "slug": "daniel-eth",
+      "role": null
+    }
+  ],
+  "topics": [],
+  "publishedAt": null,
+  "series": null,
+  "links": {
+    "podcast": null,
+    "podcastTitle": null,
+    "podcastDurationSeconds": null,
+    "lesswrong": null,
+    "eaForum": null,
+    "preprint": null,
+    "sameAs": [
+      "https://x.com/daniel_271828",
+      "https://medium.com/@daniel_eth",
+      "https://www.linkedin.com/in/daniel-eth-0bb27549/"
+    ]
+  },
+  "body": "# Daniel Eth",
+  "text": "Daniel Eth",
+  "wordCount": 2,
+  "scrapedAt": "2026-04-27T16:33:32.774Z"
+}
