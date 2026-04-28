@@ -1,0 +1,29 @@
+{
+  "id": "claim_recall_003",
+  "track": "claim_recall",
+  "version": 1,
+  "question": "In Forethought's 'Three Types of Intelligence Explosion', what probability do the authors give that the chip production feedback loop alone can sustain accelerating progress in a full-stack intelligence explosion?",
+  "claim_type": "numeric",
+  "numeric_target": {
+    "value": 0.80,
+    "unit": "probability",
+    "tolerance": {"rtol": 0.10, "atol": 0.05}
+  },
+  "accepted_phrasings": [
+    "around 80%",
+    "~80%",
+    "roughly 80% likely",
+    "about 80 percent"
+  ],
+  "hedge_terms": ["likely", "highly likely", "~"],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/three-types-of-intelligence-explosion",
+    "title": "Three Types of Intelligence Explosion",
+    "authors": ["Tom Davidson", "Rose Hadshar", "William MacAskill"]
+  },
+  "source_passage": "A full-stack IE is highly likely to accelerate. It's likely that the chip production feedback loop *by itself* can sustain accelerating progress (~80%).",
+  "metadata": {
+    "topics": ["intelligence-explosion", "feedback-loops", "hardware", "forecasting"],
+    "difficulty": "easy"
+  }
+}

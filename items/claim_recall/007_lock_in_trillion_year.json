@@ -1,0 +1,32 @@
+{
+  "id": "claim_recall_007",
+  "track": "claim_recall",
+  "version": 1,
+  "question": "In Forethought's 'AGI and Lock-in' paper (Lukas Finnveden), what subjective probability do the authors say the feasibility of a trillion-year stable society is worth, at minimum?",
+  "claim_type": "numeric",
+  "numeric_target": {
+    "value": 0.20,
+    "unit": "probability",
+    "tolerance": {"rtol": 0.10, "atol": 0.03}
+  },
+  "accepted_phrasings": [
+    "at least 20%",
+    "≥20%",
+    "20% or more",
+    "no less than 20%",
+    "20 percent or higher"
+  ],
+  "hedge_terms": ["at least", "plausibly", "we think"],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/agi-and-lock-in",
+    "title": "AGI and Lock-in",
+    "authors": ["Lukas Finnveden"]
+  },
+  "source_passage": "Out of these, alien civilizations seem most likely to upset an otherwise locked-in scenario. Except for that, we think it seems more likely than not that a trillion-year stable society is possible, and that the arguments fairly robustly point towards them being at least plausibly possible (say, that their feasibility is worth at least 20% subjective probability).",
+  "metadata": {
+    "topics": ["lock-in", "long-term-future", "forecasting"],
+    "difficulty": "hard",
+    "hedge_preservation_critical": true,
+    "note": "This is a lower-bound claim. Stripping 'at least' loses the bound semantics; hedge_preservation must catch this."
+  }
+}
