@@ -42,7 +42,7 @@ type ContentRecord = {
   authors: { name: string; slug: string | null; role: string | null }[];
   topics: string[];
   publishedAt: string | null;
-  series: { title: string; slug: string | null } | null;
+  series: SeriesInfo | null;
   links: {
     podcast: string | null;
     podcastTitle: string | null;
@@ -214,16 +214,71 @@ function extractTopics(topics: unknown): string[] {
   return out;
 }
 
-function extractSeries(
-  seriesContext: unknown,
-): { title: string; slug: string | null } | null {
+type SeriesPart = { slug: string; title: string };
+
+type SeriesInfo = {
+  title: string;
+  slug: string | null;
+  totalParts: number;
+  currentIndex: number | null;
+  parts: SeriesPart[];
+  overview: SeriesPart | null;
+};
+
+/**
+ * Forethought's `seriesContext` payload has the shape
+ *   { kind: "part" | "overview", seriesName, totalParts,
+ *     partsNavigation: { currentIndex, previousArticle, nextArticle, overviewArticle },
+ *     partsList: [{ slug, title, isCurrent }] }
+ * — not the original Sanity-style `seriesContext.series.fields`. Read
+ * directly from the partsList so a series carries its full ordering.
+ */
+function extractSeries(seriesContext: unknown): SeriesInfo | null {
   if (!isObject(seriesContext)) return null;
-  const series = isObject(seriesContext.series) ? seriesContext.series : null;
-  if (!series || !isObject(series.fields)) return null;
-  const f = series.fields as Record<string, unknown>;
-  const title = typeof f.title === "string" ? f.title.trim() : "";
-  if (!title) return null;
-  return { title, slug: typeof f.slug === "string" ? f.slug : null };
+  const seriesName =
+    typeof seriesContext.seriesName === "string"
+      ? seriesContext.seriesName.trim()
+      : "";
+  if (!seriesName) return null;
+  const totalParts =
+    typeof seriesContext.totalParts === "number" ? seriesContext.totalParts : 0;
+  const nav = isObject(seriesContext.partsNavigation)
+    ? seriesContext.partsNavigation
+    : null;
+  const partsListRaw = Array.isArray(seriesContext.partsList)
+    ? seriesContext.partsList
+    : [];
+  const parts: SeriesPart[] = [];
+  let currentIndex: number | null = null;
+  partsListRaw.forEach((p, i) => {
+    if (
+      isObject(p) &&
+      typeof p.slug === "string" &&
+      typeof p.title === "string"
+    ) {
+      parts.push({ slug: p.slug, title: p.title.trim() });
+      if (p.isCurrent === true) currentIndex = i;
+    }
+  });
+  // partsNavigation can also tell us currentIndex (1-based per the payload)
+  if (currentIndex === null && nav && typeof nav.currentIndex === "number") {
+    currentIndex = nav.currentIndex - 1;
+  }
+  let overview: SeriesPart | null = null;
+  if (nav && isObject(nav.overviewArticle)) {
+    const o = nav.overviewArticle;
+    if (typeof o.slug === "string" && typeof o.title === "string") {
+      overview = { slug: o.slug, title: o.title.trim() };
+    }
+  }
+  return {
+    title: seriesName,
+    slug: overview?.slug ?? null,
+    totalParts,
+    currentIndex,
+    parts,
+    overview,
+  };
 }
 
 function extractPodcastMetadata(podcastMetadata: unknown, link: string | null) {

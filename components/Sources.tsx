@@ -1,6 +1,12 @@
 "use client";
 
+import Link from "next/link";
 import type { SourceCard } from "@/lib/types";
+import {
+  externalUrlWithFragment,
+  internalPathForUrl,
+  readerHighlightParams,
+} from "@/lib/article-link";
 import { ExternalLink } from "./icons";
 
 const fmtDate = (iso: string | null): string | null => {
@@ -37,27 +43,29 @@ export function Sources({ sources }: { sources: SourceCard[] }) {
           className="uppercase text-[11px] tracking-[0.16em] text-[var(--color-ink-faint)]"
           style={{ fontFamily: "var(--font-sans)" }}
         >
-          Sources · {unique.length}
+          Sources &middot; {unique.length}
         </span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
         {unique.map((s) => {
           const date = fmtDate(s.publishedAt);
           const isPerson = s.category === "people";
-          return (
-            <a
-              key={s.url}
-              href={s.url}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="source-card group block rounded-[10px] border border-[var(--color-rule)] bg-[var(--color-paper-soft)]/60 px-3.5 py-3 text-[13.5px] leading-snug"
-            >
+          const internalPath = internalPathForUrl(s.url);
+          const readerHref = internalPath
+            ? `${internalPath}${readerHighlightParams(s.snippet)}`
+            : null;
+          const externalHref = externalUrlWithFragment(s.url, s.snippet);
+
+          // Card is internal Link when we have a reader path, else open
+          // straight to forethought.org with a text fragment.
+          const cardChildren = (
+            <>
               <div className="flex items-center gap-1.5 mb-1.5">
                 {s.markers.map((n) => (
                   <span
                     key={n}
                     className="inline-flex items-center justify-center min-w-[18px] h-[18px] px-1 rounded text-[10px] font-medium text-[var(--color-coral-deep)] bg-[var(--color-coral-tint)]"
-                    style={{ fontFamily: "var(--font-mono)" }}
+                    style={{ fontFamily: "var(--font-sans)" }}
                   >
                     {n}
                   </span>
@@ -67,9 +75,6 @@ export function Sources({ sources }: { sources: SourceCard[] }) {
                   style={{ fontFamily: "var(--font-sans)" }}
                 >
                   {isPerson ? "Person" : s.category}
-                </span>
-                <span className="ml-auto text-[var(--color-ink-faint)] opacity-0 group-hover:opacity-100 transition-opacity">
-                  <ExternalLink className="w-3 h-3" />
                 </span>
               </div>
               <div
@@ -82,7 +87,10 @@ export function Sources({ sources }: { sources: SourceCard[] }) {
               >
                 {s.title}
               </div>
-              <div className="mt-1 text-[12px] text-[var(--color-ink-muted)]">
+              <div
+                className="mt-1 text-[12px] text-[var(--color-ink-muted)]"
+                style={{ fontFamily: "var(--font-sans)" }}
+              >
                 {s.authors.length > 0 ? s.authors.join(", ") : null}
                 {s.authors.length > 0 && date ? " · " : null}
                 {date}
@@ -101,7 +109,47 @@ export function Sources({ sources }: { sources: SourceCard[] }) {
                   {s.snippet}
                 </div>
               ) : null}
-            </a>
+            </>
+          );
+
+          const cardClass =
+            "source-card block rounded-[10px] border border-[var(--color-rule)] bg-[var(--color-paper-soft)]/60 px-3.5 py-3 text-[13.5px] leading-snug";
+
+          return (
+            <div key={s.url} className="group relative">
+              {readerHref ? (
+                <Link
+                  href={readerHref}
+                  data-source-url={s.url}
+                  className={cardClass}
+                >
+                  {cardChildren}
+                </Link>
+              ) : (
+                <a
+                  href={externalHref}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-source-url={s.url}
+                  className={cardClass}
+                >
+                  {cardChildren}
+                </a>
+              )}
+              {/* Secondary link to forethought.org with text-fragment highlight,
+                  visible on hover so the in-app reader stays the default. */}
+              <a
+                href={externalHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="absolute top-2 right-2 inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[10.5px] text-[var(--color-ink-faint)] opacity-0 group-hover:opacity-100 hover:text-[var(--color-coral-deep)] transition-opacity bg-[var(--color-paper)] border border-[var(--color-rule)]"
+                style={{ fontFamily: "var(--font-sans)" }}
+                aria-label="Open original on forethought.org"
+              >
+                source
+                <ExternalLink className="w-2.5 h-2.5" />
+              </a>
+            </div>
           );
         })}
       </div>

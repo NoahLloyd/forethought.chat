@@ -34,10 +34,12 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+        <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
         {/*
-          Webfonts: Source Serif 4 + JetBrains Mono are open-licensed
-          alternates for Anthropic's Tiempos / Söhne pairings. Preconnect
-          first to keep first-paint snappy.
+          Newsreader approximates Klim's Signifier (forethought.org's
+          serif); DM Sans approximates TypeType's TT Hoves. Both are
+          paid foundry fonts on the real site — swap if licensed.
         */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -46,7 +48,7 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
         <link
-          href="https://fonts.googleapis.com/css2?family=Source+Serif+4:ital,opsz,wght@0,8..60,300..700;1,8..60,300..700&family=JetBrains+Mono:wght@400;500&display=swap"
+          href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..700;1,6..72,300..700&family=DM+Sans:ital,opsz,wght@0,9..40,300..700;1,9..40,300..700&family=JetBrains+Mono:wght@400;500&display=swap"
           rel="stylesheet"
         />
       </head>
