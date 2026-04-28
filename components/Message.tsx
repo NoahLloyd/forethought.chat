@@ -1,14 +1,11 @@
 "use client";
 
-import React, { useCallback, useRef } from "react";
-import Link from "next/link";
+import React, { useCallback, useMemo } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
 import type { SourceCard } from "@/lib/types";
-import {
-  internalPathForUrl,
-  readerHighlightParams,
-} from "@/lib/article-link";
+import { externalUrlWithFragment } from "@/lib/article-link";
+import { PassageCard } from "./PassageCard";
 import { Sources } from "./Sources";
 
 export type ChatTurn =
@@ -31,7 +28,7 @@ export function UserBubble({ content }: { content: string }) {
     <div className="flex justify-end">
       <div
         className="max-w-[85%] rounded-2xl px-4 py-2.5 text-[15.5px] leading-snug bg-[var(--color-ink)] text-[var(--color-paper)]"
-        style={{ fontFamily: "var(--font-serif)" }}
+        style={{ fontFamily: "var(--font-sans)" }}
       >
         {content.split("\n").map((line, i, arr) => (
           <span key={i}>
@@ -55,35 +52,66 @@ export function AssistantTurn({
   streaming: boolean;
   error?: string | null;
 }) {
-  const turnRef = useRef<HTMLDivElement | null>(null);
+  // Server-side markers can be sparse and large (the agent may retrieve
+  // 15 chunks but only cite 5 of them). Renumber for display so the user
+  // sees [1] [2] [3] instead of [2] [11] [14], in order of first
+  // appearance in the prose. The mapping is purely client-side; the
+  // server keeps stable globally-unique markers so the model can cite
+  // consistently across multi-tool-call agent loops.
+  const { displayContent, displaySources, displayCited } = useMemo(() => {
+    const order: number[] = [];
+    const orderSeen = new Set<number>();
+    CITE_RE.lastIndex = 0;
+    let m: RegExpExecArray | null;
+    while ((m = CITE_RE.exec(content)) !== null) {
+      for (const part of m[1].split(/\s*,\s*/)) {
+        const n = Number(part);
+        if (Number.isFinite(n) && !orderSeen.has(n)) {
+          orderSeen.add(n);
+          order.push(n);
+        }
+      }
+    }
+    CITE_RE.lastIndex = 0;
 
-  // Scroll the matching source card into view and pulse it. Used by
-  // citation chips when the user clicks rather than navigates.
-  const scrollToCard = useCallback((url: string) => {
-    if (!turnRef.current) return;
-    const card = turnRef.current.querySelector<HTMLElement>(
-      `[data-source-url="${CSS.escape(url)}"]`,
+    // Original-marker → 1-based display marker.
+    const map = new Map<number, number>();
+    order.forEach((orig, i) => map.set(orig, i + 1));
+
+    // Rewrite the prose so every `[N]` (or `[N, M]`) uses display nums.
+    const rewritten = content.replace(
+      /\[(\d+(?:\s*,\s*\d+)*)\]/g,
+      (_full, group: string) => {
+        const parts = group
+          .split(/\s*,\s*/)
+          .map(Number)
+          .map((n) => map.get(n))
+          .filter((n): n is number => typeof n === "number");
+        if (parts.length === 0) return _full;
+        return `[${parts.join(", ")}]`;
+      },
     );
-    if (!card) return;
-    card.scrollIntoView({ behavior: "smooth", block: "center" });
-    card.style.boxShadow = "0 0 0 2px var(--color-coral)";
-    setTimeout(() => {
-      card.style.boxShadow = "";
-    }, 900);
-  }, []);
 
-  // Walk the React tree ReactMarkdown produces and substitute `[N]` text
-  // patterns with real <CitationChip /> components. Going through proper
-  // React nodes (not dangerouslySetInnerHTML / HTML strings) avoids the
-  // streaming half-tag artefact where partial HTML showed up as raw text.
+    // Only sources cited in the prose, with their markers renumbered to
+    // match the rewritten content.
+    const cited = sources
+      .filter((s) => map.has(s.marker))
+      .map((s) => ({ ...s, marker: map.get(s.marker)! }))
+      .sort((a, b) => a.marker - b.marker);
+
+    return {
+      displayContent: rewritten,
+      displaySources: cited,
+      displayCited: cited,
+    };
+  }, [content, sources]);
+
   const decorate = useCallback(
     (node: React.ReactNode, keyHint: string): React.ReactNode =>
-      withCitations(node, sources, scrollToCard, keyHint),
-    [sources, scrollToCard],
+      withCitations(node, displaySources, keyHint),
+    [displaySources],
   );
 
-  // Show a soft progress indicator while we're between request-fire and
-  // first-token: tells the user the model is reading rather than stalled.
   const stage: "preflight" | "reading" | "writing" | "done" = streaming
     ? content.length > 0
       ? "writing"
@@ -93,7 +121,7 @@ export function AssistantTurn({
     : "done";
 
   return (
-    <div ref={turnRef} className="settle">
+    <div className="settle">
       {stage === "preflight" || stage === "reading" ? (
         <div className="mb-3 flex items-center gap-2 text-[12px] text-[var(--color-ink-muted)]"
              style={{ fontFamily: "var(--font-sans)" }}
@@ -148,7 +176,7 @@ export function AssistantTurn({
               img: ({ src, alt }) => <ChatFigure src={src} alt={alt} />,
             }}
           >
-            {content}
+            {displayContent}
           </ReactMarkdown>
         )}
         {streaming && content.length > 0 ? (
@@ -166,7 +194,7 @@ export function AssistantTurn({
       {!streaming && content.length > 0 ? (
         <CopyButton content={content} />
       ) : null}
-      {sources.length > 0 ? <Sources sources={sources} /> : null}
+      {displayCited.length > 0 ? <Sources sources={displayCited} /> : null}
     </div>
   );
 }
@@ -180,7 +208,7 @@ function CopyButton({ content }: { content: string }) {
       setTimeout(() => setState("idle"), 1400);
     } catch {
       // Clipboard API can be unavailable (insecure context, no permission).
-      // Silent failure is fine — the response is right there to select.
+      // Silent failure is fine; the response is right there to select.
     }
   }, [content]);
   return (
@@ -234,7 +262,6 @@ const CITE_RE = /\[(\d+(?:\s*,\s*\d+)*)\]/g;
 function withCitations(
   node: React.ReactNode,
   sources: SourceCard[],
-  onScrollToCard: (url: string) => void,
   keyHint: string,
 ): React.ReactNode {
   if (node === null || node === undefined) return node;
@@ -257,7 +284,6 @@ function withCitations(
             key={`${keyHint}-${i}-${j}`}
             marker={n}
             source={sources.find((s) => s.marker === n)}
-            onScrollToCard={onScrollToCard}
           />,
         );
       });
@@ -271,9 +297,11 @@ function withCitations(
   }
 
   if (Array.isArray(node)) {
-    return node.map((c, i) =>
-      withCitations(c, sources, onScrollToCard, `${keyHint}-${i}`),
-    );
+    return node.map((c, i) => (
+      <React.Fragment key={`${keyHint}-${i}`}>
+        {withCitations(c, sources, `${keyHint}-${i}`)}
+      </React.Fragment>
+    ));
   }
 
   if (React.isValidElement(node)) {
@@ -281,7 +309,6 @@ function withCitations(
     const newChildren = withCitations(
       el.props.children,
       sources,
-      onScrollToCard,
       `${keyHint}-c`,
     );
     return React.cloneElement(el, { children: newChildren } as never);
@@ -293,11 +320,9 @@ function withCitations(
 function CitationChip({
   marker,
   source,
-  onScrollToCard,
 }: {
   marker: number;
   source: SourceCard | undefined;
-  onScrollToCard: (url: string) => void;
 }) {
   if (!source) {
     return (
@@ -310,74 +335,34 @@ function CitationChip({
     );
   }
 
-  const internalPath = internalPathForUrl(source.url);
-  const handleClick = (e: React.MouseEvent<HTMLAnchorElement>) => {
-    if (e.metaKey || e.ctrlKey || e.shiftKey || e.button !== 0) return;
-    e.preventDefault();
-    onScrollToCard(source.url);
-  };
-
-  const date = formatShortDate(source.publishedAt);
-
-  const popover = (
-    <span className="cite-popover" role="tooltip">
-      <span className="cite-popover-meta">
-        <span className="cite-popover-cat">
-          {source.category === "people" ? "Person" : source.category}
-        </span>
-        {date ? <span className="cite-popover-date">{date}</span> : null}
-      </span>
-      <span className="cite-popover-title">{source.title}</span>
-      {source.authors.length > 0 ? (
-        <span className="cite-popover-authors">
-          {source.authors.join(", ")}
-        </span>
-      ) : null}
-      {source.snippet ? (
-        <span className="cite-popover-snippet">&ldquo;{source.snippet}&rdquo;</span>
-      ) : null}
-      <span className="cite-popover-actions">
-        <span className="cite-popover-action">
-          {internalPath ? "Open in reader" : "Open"}
-          <span aria-hidden> &rarr;</span>
-        </span>
-        <span className="cite-popover-hint">
-          click chip &middot; cmd-click to open
-        </span>
-      </span>
-    </span>
+  // Plain click opens forethought.org with the cited passage highlighted
+  // via a text fragment. Hovering the chip reveals the preview card so
+  // the user can decide before clicking.
+  const externalHref = externalUrlWithFragment(
+    source.url,
+    source.snippet,
+    source.source,
   );
 
-  const innerLabel = (
-    <>
-      <span className="cite-marker">{marker}</span>
-      {popover}
-    </>
-  );
-
-  if (internalPath) {
-    return (
-      <Link
-        href={`${internalPath}${readerHighlightParams(source.snippet)}`}
-        onClick={handleClick}
+  return (
+    <span className="passage-anchor">
+      <a
+        href={externalHref}
+        target="_blank"
+        rel="noopener noreferrer"
         className="cite-chip"
         aria-label={`Citation ${marker}: ${source.title}`}
       >
-        {innerLabel}
-      </Link>
-    );
-  }
-  return (
-    <a
-      href={source.url}
-      onClick={handleClick}
-      target="_blank"
-      rel="noopener noreferrer"
-      className="cite-chip"
-      aria-label={`Citation ${marker}: ${source.title}`}
-    >
-      {innerLabel}
-    </a>
+        {marker}
+      </a>
+      <PassageCard
+        source={source}
+        passages={
+          source.snippet ? [{ marker, snippet: source.snippet }] : []
+        }
+        placement="above"
+      />
+    </span>
   );
 }
 
@@ -404,9 +389,3 @@ function ChatFigure({
   );
 }
 
-function formatShortDate(iso: string | null): string | null {
-  if (!iso) return null;
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toLocaleDateString("en-GB", { month: "short", year: "numeric" });
-}
