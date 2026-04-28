@@ -2,7 +2,7 @@
  * BM25 retrieval over the prebuilt chunk index.
  *
  * The index is loaded once per server process and held in module memory.
- * Querying is O(query terms × candidate chunks) — fast enough for a
+ * Querying is O(query terms × candidate chunks); fast enough for a
  * sub-thousand-chunk corpus on a single thread.
  *
  * We add a soft article-diversity cap on top of pure BM25 so a top-K
@@ -36,7 +36,7 @@ async function load(): Promise<IndexCache> {
   if (cache) return cache;
   if (cachePromise) return cachePromise;
   // Capture the promise locally so the `finally` clean-up doesn't clobber
-  // a NEW promise installed by a third concurrent caller — the bug being:
+  // a NEW promise installed by a third concurrent caller. The bug being:
   //   A starts load → sets cachePromise=p1
   //   B awaits p1
   //   A finishes → finally clears cachePromise to null
@@ -189,7 +189,7 @@ export async function search(
     if (score > 0) scores.set(c.id, score);
   }
 
-  // Title / author / topic overlap — soft, but enough to surface canonical
+  // Title / author / topic overlap: soft, but enough to surface canonical
   // entry points when their slug, author, or topic name is in the query.
   for (const c of payload.chunks) {
     const haystack = [c.title, ...c.authors, ...c.topics, c.section ?? ""]
@@ -256,4 +256,14 @@ export async function search(
 export async function getChunk(id: string): Promise<Chunk | null> {
   const { byId } = await load();
   return byId.get(id) ?? null;
+}
+
+/**
+ * Return all chunks belonging to a given canonical article URL, in
+ * document order. Used to seed the agent with context when the user
+ * @-mentions an article in the composer.
+ */
+export async function chunksForUrl(url: string): Promise<Chunk[]> {
+  const { payload } = await load();
+  return payload.chunks.filter((c) => c.url === url);
 }

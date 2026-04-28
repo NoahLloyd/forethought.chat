@@ -1,10 +1,10 @@
 @import "tailwindcss";
 
 /*
- * Forethought.chat — design tokens lifted from forethought.org.
+ * Forethought.chat: design tokens lifted from forethought.org.
  *
  * Forethought's site uses Signifier (Klim) for serif and TT Hoves
- * (TypeType) for sans — both commercial fonts. We approximate with
+ * (TypeType) for sans, both commercial fonts. We approximate with
  * Newsreader and DM Sans from Google Fonts; if the real fonts are
  * licensed, swap the family names below.
  */
@@ -35,12 +35,34 @@
   --radius-pill: 999px;
 }
 
+/* Dark mode, auto-applied when the OS reports a dark preference. We
+ * keep the same warm temperature (Forethought is a paper-and-ink brand
+ * not a cold-grey one) and the same coral accent. Every component
+ * already reads from these tokens, so no per-element override needed. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-paper: #1c1916;
+    --color-paper-deep: #2a2622;
+    --color-paper-soft: #221e1a;
+    --color-ink: #ece7dd;
+    --color-ink-muted: #9c978f;
+    --color-ink-faint: #6c6760;
+    --color-rule: #3a342e;
+    --color-rule-soft: #2a2622;
+    --color-coral: #ff7d56;
+    --color-coral-deep: #ffa888;
+    --color-coral-tint: #5d2818;
+    --color-leaf: #8a9678;
+  }
+}
+
 html {
   background: var(--color-paper);
   color: var(--color-ink);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
+  color-scheme: light dark;
 }
 
 body {
@@ -151,157 +173,49 @@ a {
   text-underline-offset: 2px;
 }
 
-/* Citation chips inside assistant prose — `[1]`, `[2,3]` etc. */
+/* Citation chips inside assistant prose: `[1]`, `[2,3]` etc.
+ *
+ * Quiet, editorial style: a thin ink-bordered glyph that reads as a
+ * footnote rather than a UI button. Numbers are mono so they sit cleanly
+ * next to serif prose without crowding the descenders.
+ */
 .prose-forethought .cite-chip {
   position: relative;
-  display: inline-block;
-  font-family: var(--font-sans);
-  font-size: 0.72em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-family: var(--font-mono);
+  font-size: 0.62em;
   font-weight: 500;
   line-height: 1;
-  color: var(--color-coral-deep);
-  background: var(--color-coral-tint);
-  padding: 2px 6px;
+  color: var(--color-ink);
+  background: var(--color-paper-soft);
+  border: 1px solid color-mix(in oklab, var(--color-ink) 60%, transparent);
   border-radius: 4px;
-  margin: 0 1px;
-  vertical-align: super;
+  margin: 0 1.5px;
+  vertical-align: 0.18em;
   cursor: pointer;
   text-decoration: none;
   transition:
     background 0.12s ease,
     color 0.12s ease,
-    transform 0.12s ease,
-    box-shadow 0.12s ease;
+    border-color 0.12s ease;
 }
 .prose-forethought .cite-chip:hover,
 .prose-forethought .cite-chip:focus-visible {
-  background: var(--color-coral);
-  color: white;
+  background: var(--color-ink);
+  color: var(--color-paper);
+  border-color: var(--color-ink);
   outline: none;
-  transform: translateY(-1px);
-  box-shadow: 0 2px 8px -2px rgba(255, 111, 67, 0.45);
-}
-.prose-forethought .cite-chip .cite-marker {
-  display: inline-block;
 }
 .prose-forethought .cite-missing {
-  background: var(--color-paper-deep);
+  background: transparent;
   color: var(--color-ink-faint);
+  border-color: var(--color-rule);
   cursor: help;
-}
-
-/* Citation popover — fades in above the chip on hover/focus. */
-.prose-forethought .cite-popover {
-  position: absolute;
-  bottom: calc(100% + 8px);
-  left: 50%;
-  transform: translateX(-50%) translateY(4px);
-  display: grid;
-  grid-template-columns: 1fr;
-  gap: 6px;
-  width: 320px;
-  max-width: 86vw;
-  padding: 12px 14px 10px;
-  background: var(--color-paper-soft);
-  border: 1px solid var(--color-rule);
-  border-radius: 12px;
-  box-shadow:
-    0 12px 32px -10px rgba(47, 42, 38, 0.22),
-    0 2px 6px -2px rgba(47, 42, 38, 0.08);
-  font-family: var(--font-sans);
-  font-size: 12px;
-  font-weight: 400;
-  line-height: 1.45;
-  color: var(--color-ink);
-  text-align: left;
-  vertical-align: baseline;
-  white-space: normal;
-  pointer-events: none;
-  opacity: 0;
-  transition:
-    opacity 0.16s ease,
-    transform 0.16s ease;
-  z-index: 40;
-}
-.prose-forethought .cite-popover::after {
-  content: "";
-  position: absolute;
-  top: 100%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 12px;
-  height: 6px;
-  background:
-    linear-gradient(135deg, transparent 50%, var(--color-paper-soft) 50%) left
-      / 50% 100% no-repeat,
-    linear-gradient(45deg, var(--color-paper-soft) 50%, transparent 50%) right
-      / 50% 100% no-repeat;
-  filter: drop-shadow(0 1px 0 var(--color-rule));
-}
-.prose-forethought .cite-chip:hover .cite-popover,
-.prose-forethought .cite-chip:focus-visible .cite-popover,
-.prose-forethought .cite-chip:focus-within .cite-popover {
-  opacity: 1;
-  transform: translateX(-50%) translateY(0);
-  pointer-events: auto;
-  transition-delay: 0.08s;
-}
-.prose-forethought .cite-popover-meta {
-  display: flex;
-  align-items: baseline;
-  gap: 8px;
-  font-size: 10.5px;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--color-ink-faint);
-}
-.prose-forethought .cite-popover-cat {
-  color: var(--color-coral-deep);
-  font-weight: 500;
-}
-.prose-forethought .cite-popover-title {
-  display: block;
-  font-family: var(--font-display);
-  font-size: 15px;
-  font-weight: 500;
-  line-height: 1.2;
-  letter-spacing: -0.005em;
-  color: var(--color-ink);
-}
-.prose-forethought .cite-popover-authors {
-  display: block;
-  font-size: 11.5px;
-  color: var(--color-ink-muted);
-}
-.prose-forethought .cite-popover-snippet {
-  display: -webkit-box;
-  -webkit-line-clamp: 4;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
-  font-family: var(--font-serif);
-  font-size: 12.5px;
-  font-style: italic;
-  line-height: 1.45;
-  color: var(--color-ink-muted);
-}
-.prose-forethought .cite-popover-actions {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  padding-top: 6px;
-  margin-top: 2px;
-  border-top: 1px solid var(--color-rule-soft);
-}
-.prose-forethought .cite-popover-action {
-  font-size: 11.5px;
-  font-weight: 500;
-  color: var(--color-coral-deep);
-}
-.prose-forethought .cite-popover-hint {
-  font-size: 10.5px;
-  color: var(--color-ink-faint);
-  font-family: var(--font-mono);
 }
 
 /* Subtle, slow caret blink for the streaming assistant turn */
@@ -322,14 +236,14 @@ a {
 /* Field affordances */
 textarea,
 input {
-  font-family: var(--font-serif);
+  font-family: var(--font-sans);
 }
 textarea:focus,
 input:focus {
   outline: none;
 }
 
-/* Custom scrollbar — paper themed */
+/* Custom scrollbar, paper themed */
 ::-webkit-scrollbar { width: 10px; height: 10px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
@@ -352,16 +266,169 @@ input:focus {
 .settle-4 { animation-delay: 0.24s; }
 .settle-5 { animation-delay: 0.32s; }
 
-/* Source card hover */
-.source-card {
-  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
-}
-.source-card:hover {
-  background: var(--color-paper-soft);
-  border-color: var(--color-coral);
+/* Source row: lightweight hairline-divided list, no boxes. */
+.source-row {
+  transition: color 0.15s ease;
 }
 
-/* Brand wordmark — keeps the SVG baseline-aligned with the ".chat" text. */
+/* ---------------------------------------------------------------------
+ * Unified passage hover card; used by both citation chips and source
+ * cards so the user sees one consistent surface no matter where they
+ * trigger it. Inspired by strategy-atlas .face-hover-card. CSS-only
+ * reveal via :hover / :focus-within on the wrapping .passage-anchor.
+ * ------------------------------------------------------------------- */
+.passage-anchor {
+  position: relative;
+  display: inline-block;
+}
+.passage-card {
+  position: absolute;
+  z-index: 60;
+  width: 340px;
+  max-width: calc(100vw - 24px);
+  padding: 12px 14px 11px;
+  background: var(--color-paper-soft);
+  border: 1px solid var(--color-ink);
+  border-radius: 10px;
+  box-shadow:
+    0 8px 22px -10px color-mix(in oklab, var(--color-ink) 35%, transparent),
+    0 2px 4px -2px color-mix(in oklab, var(--color-ink) 20%, transparent);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--color-ink);
+  text-align: left;
+  white-space: normal;
+  pointer-events: none;
+  visibility: hidden;
+  opacity: 0;
+  transform: translateY(-4px);
+  transition:
+    visibility 0s linear 90ms,
+    opacity 90ms ease,
+    transform 90ms ease;
+}
+/* No underlines anywhere inside the card; everything is editorial-quiet
+ * even though the rows are still <a> elements. */
+.passage-card a,
+.passage-card a:hover,
+.passage-card a:focus,
+.passage-card a:visited {
+  text-decoration: none;
+}
+.passage-card.place-below {
+  top: calc(100% + 8px);
+  left: 0;
+}
+.passage-card.place-above {
+  bottom: calc(100% + 8px);
+  left: 0;
+}
+/* Invisible bridge over the 8px gap so moving the cursor from the
+ * trigger toward the card never lands on a non-hovered region. Without
+ * this, the dead zone makes the card vanish mid-traversal. */
+.passage-card::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 12px;
+  background: transparent;
+}
+.passage-card.place-below::before {
+  top: -12px;
+}
+.passage-card.place-above::before {
+  bottom: -12px;
+}
+.passage-anchor:hover .passage-card,
+.passage-anchor:focus-within .passage-card {
+  visibility: visible;
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+  transition-delay: 60ms, 60ms, 60ms;
+}
+.passage-card-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+  margin-bottom: 4px;
+}
+.passage-card-cat {
+  color: var(--color-coral-deep);
+  font-weight: 500;
+}
+.passage-card-title {
+  display: block;
+  font-family: var(--font-display);
+  font-size: 15.5px;
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: -0.005em;
+  color: var(--color-ink);
+  margin-bottom: 2px;
+}
+.passage-card-authors {
+  display: block;
+  font-size: 11.5px;
+  color: var(--color-ink-muted);
+  margin-bottom: 8px;
+}
+.passage-card-passages {
+  border-top: 1px solid var(--color-rule-soft);
+  padding-top: 8px;
+  display: grid;
+  gap: 8px;
+}
+.passage-card-passage {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 8px;
+  align-items: baseline;
+  text-decoration: none;
+  color: inherit;
+  padding: 6px 8px;
+  margin: -6px -8px;
+  border-radius: 6px;
+  transition: background 0.12s ease;
+}
+.passage-card-passage:hover {
+  background: var(--color-paper-deep);
+}
+.passage-card-passage:hover .passage-card-snippet {
+  color: var(--color-coral-deep);
+}
+.passage-card-marker {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 4px;
+  background: var(--color-paper-soft);
+  border: 1px solid color-mix(in oklab, var(--color-ink) 60%, transparent);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-size: 10px;
+  line-height: 1;
+}
+.passage-card-snippet {
+  font-family: var(--font-sans);
+  font-size: 13px;
+  font-style: normal;
+  line-height: 1.55;
+  color: var(--color-ink);
+}
+
+/* Brand wordmark: keeps the SVG baseline-aligned with the ".chat" text. */
 .brand-mark {
   display: inline-flex;
   align-items: baseline;

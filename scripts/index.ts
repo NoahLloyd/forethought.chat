@@ -6,7 +6,7 @@
  * statistics so the runtime BM25 ranker (lib/search.ts) can score chunks
  * without recomputing them on every query.
  *
- * Output: data/index.json — a single, lazily-loaded file containing every
+ * Output: data/index.json, a single, lazily-loaded file containing every
  * chunk plus the IDF table.
  */
 import { promises as fs } from "node:fs";
@@ -59,11 +59,12 @@ type Chunk = {
   section: string | null;
   text: string;
   tokens: string[];
+  source: "abstract" | "body";
 };
 
 /**
  * Tokeniser tuned for English research prose: lowercases, strips punctuation,
- * and keeps everything else as a token. We deliberately don't stem — names
+ * and keeps everything else as a token. We deliberately don't stem; names
  * and technical terms (`Forethought`, `MacAskill`, `lock-in`) need to match
  * cleanly. Stopwords are left in (BM25 handles them via IDF).
  */
@@ -107,6 +108,21 @@ function chunkRecord(rec: ContentRecord): Chunk[] {
   let section: string | null = null;
   let chunkIdx = 0;
 
+  // Track whether we're still in the article's abstract (the prose that
+  // sits before any non-title heading). Forethought renders the body
+  // sections to visible HTML but stashes the abstract only in <meta>
+  // tags and __NEXT_DATA__, so chunks tagged "abstract" can't be
+  // text-fragment-targeted on the public page. We only enable abstract
+  // tagging for records whose body actually contains the `**Abstract.**`
+  // marker; for people / pages records, every chunk is "body".
+  const hasAbstract = md.includes("**Abstract.**");
+  let titleHeadingSeen = false;
+  let abstractEnded = !hasAbstract;
+
+  function currentSource(): "abstract" | "body" {
+    return abstractEnded ? "body" : "abstract";
+  }
+
   function flush(): void {
     if (buffer.length === 0) return;
     const text = buffer.join("\n\n").trim();
@@ -124,6 +140,7 @@ function chunkRecord(rec: ContentRecord): Chunk[] {
       section,
       text,
       tokens: tokenize(stripMd(text)),
+      source: currentSource(),
     });
     chunkIdx += 1;
     buffer = [];
@@ -135,11 +152,22 @@ function chunkRecord(rec: ContentRecord): Chunk[] {
     if (headingMatch) {
       const level = headingMatch[1].length;
       const headingText = headingMatch[2];
-      // Only update `section` for h2 and h3 — h1 is the article title and
+      // Only update `section` for h2 and h3; h1 is the article title and
       // h4+ are usually subsection labels we'd rather treat as inline.
       if (level === 2 || level === 3) section = headingText;
       // A heading flushes the current buffer so the next chunk starts fresh.
       flush();
+      // Once we've seen the second heading in an abstract-containing
+      // record, mark the abstract as ended; this and subsequent chunks
+      // are body content. The flush above commits the trailing abstract
+      // chunk under the old flag.
+      if (hasAbstract) {
+        if (!titleHeadingSeen) {
+          titleHeadingSeen = true;
+        } else if (!abstractEnded) {
+          abstractEnded = true;
+        }
+      }
       // Carry the heading into the next chunk so it has context.
       buffer.push(line);
       bufferLen += line.length;
@@ -190,7 +218,7 @@ async function main() {
       rec = JSON.parse(raw) as ContentRecord;
     } catch (err) {
       console.warn(
-        `  ! skipping ${f} — ${(err as Error).message} (${raw.length} bytes)`,
+        `  ! skipping ${f}: ${(err as Error).message} (${raw.length} bytes)`,
       );
       continue;
     }

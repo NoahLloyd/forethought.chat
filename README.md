@@ -59,14 +59,75 @@ pnpm scrape -- --refresh   # re-fetch every page
 pnpm index                 # rebuild data/index.json
 ```
 
-The scraper reads `__NEXT_DATA__` from each page (Forethought publishes via Next.js + Contentful) and lifts the structured article body out — so footnote markers, author lists, topic tags, and ISO dates are preserved verbatim.
+The scraper reads `__NEXT_DATA__` from each page (Forethought publishes via Next.js + Contentful) and lifts the structured article body out, so footnote markers, author lists, topic tags, and ISO dates are preserved verbatim.
 
 ## Configuration
 
 `.env.local` knobs:
 
-- `ANTHROPIC_API_KEY` — required.
-- `NEXT_PUBLIC_SUPABASE_URL` / `…_ANON_KEY` / `SUPABASE_SERVICE_ROLE_KEY` — optional. The default build does not use them; they are placeholders for swapping the local BM25 layer for a pgvector/Supabase-backed index.
+- `ANTHROPIC_API_KEY`: required for the default chat backend (when no user-supplied key is in play).
+- `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SECRET_KEY`: optional. When set, chat history persists to Supabase Postgres and the left sidebar shows past conversations. When unset, the app runs entirely from the local BM25 index and chats live in `localStorage`.
+
+## Bring-your-own-key (BYOK)
+
+Users can plug in their own API key for any of the supported providers via the **Settings** entry at the bottom of the sidebar. Supported providers:
+
+| Provider  | SDK              | Models surfaced in the picker                                  |
+| --------- | ---------------- | -------------------------------------------------------------- |
+| Anthropic | `@anthropic-ai/sdk` | Claude Opus 4.7, Sonnet 4.6, Haiku 4.5                       |
+| OpenAI    | `openai`         | GPT-4.1, GPT-4o, GPT-4o mini                                   |
+| Google    | `@google/genai`  | Gemini 2.5 Pro, Gemini 2.5 Flash                               |
+
+The key is stored only in the user's browser (`localStorage`) and is sent server-side with each chat request, where it's used once and discarded; never logged or persisted. RLS-style: leaving Settings empty falls back to the server's `ANTHROPIC_API_KEY` env var.
+
+The agent loop (a single `search` tool over the BM25 corpus) is implemented per-provider in `lib/providers/{anthropic,openai,google}.ts`. Each adapter handles its provider's tool-call streaming protocol; the route in `app/api/chat/route.ts` dispatches based on the BYOK config and shares a single citation-marker registry across providers so `[1]…[N]` markers are stable regardless of which model produced the answer.
+
+Verified end-to-end:
+- Anthropic (default env key + BYOK Haiku model): tool_call → sources → text → done.
+- OpenAI / Google: SDK call shape verified by submitting a fake key and observing a clean 401/INVALID_ARGUMENT propagate back as a human-readable SSE `error` event.
+
+## Chat history (optional Supabase setup)
+
+Chat history is stored in Postgres so users can come back to previous conversations across devices/sessions. The wiring is opt-in: leave the env vars unset and the app works as a single-session chat backed by `localStorage`.
+
+> **Note on key formats.** Supabase rolled out new API keys in mid-2025: `sb_publishable_…` (replaces `anon`) and `sb_secret_…` (replaces `service_role`). Projects created after **November 1, 2025** only ship with the new format; the legacy keys will be deleted entirely in late 2026. Our server wrapper accepts either format; just set `SUPABASE_SECRET_KEY` for new projects, or `SUPABASE_SERVICE_ROLE_KEY` if you have an older project that still uses the JWT keys.
+
+To enable:
+
+1. Create a Supabase project at <https://supabase.com>.
+2. Run the migration in `supabase/migrations/0001_chats.sql`: paste it into the SQL editor (Database → SQL Editor) or use `supabase db push` if you have the CLI.
+3. In the dashboard go to **Project Settings → API Keys**. Copy the project URL and a secret key into `.env.local`:
+
+   ```env
+   NEXT_PUBLIC_SUPABASE_URL=https://<project>.supabase.co
+   SUPABASE_SECRET_KEY=sb_secret_xxxxxxxxxxxxxxxx
+   ```
+
+   Use the **Secret keys** section, not the Publishable key. The secret key is server-only and is what bypasses RLS. (`sb_secret_…` is rejected by the supabase-js client if you accidentally try to use it in a browser, so it's safe-by-default.) All reads/writes go through `app/api/chats/...`, which scopes rows to a cookie-based anonymous user id (`ftc_uid`). RLS on `chats` is enabled with a deny-all policy so even a leaked publishable/anon key cannot reach the table.
+
+4. Redeploy with the same env vars. The sidebar will switch from "Past chats will appear here once Supabase is configured" to a live history list as soon as `/api/chats` reports `enabled: true`.
+
+### Schema
+
+`chats` is the only table:
+
+| column      | type        | notes                                          |
+| ----------- | ----------- | ---------------------------------------------- |
+| id          | uuid        | primary key, generated server-side             |
+| user_id     | text        | cookie-derived anonymous identity              |
+| title       | text        | derived from the first user turn (≤ 80 chars)  |
+| transcript  | jsonb       | full `ChatTurn[]` from the client              |
+| mentions    | jsonb       | `ArticleMention[]` carried over for replay     |
+| created_at  | timestamptz |                                                |
+| updated_at  | timestamptz | trigger keeps it current on update             |
+
+### Other things that benefit from being online
+
+Once Supabase is plumbed, natural follow-ons (not yet built):
+
+- **Per-query analytics**: a small `events` table that logs anonymous query/response timings and which sources got cited. Useful for tuning the BM25 ranker and spotting questions the corpus doesn't answer well.
+- **Response feedback**: thumbs-up/down per assistant turn, scoped to the same anonymous id. Drops directly into the same RLS-deny posture.
+- **Shared chats**: a public-read flag on `chats` plus a slug column lets users share a transcript via URL.
 
 ## Deploy to Vercel
 
@@ -81,4 +142,4 @@ The chat route uses `runtime: 'nodejs'` (the file-backed BM25 index isn't compat
 
 ## Disclaimer
 
-Forethought.chat is unofficial and not affiliated with Forethought. The model is grounded in Forethought's public writing but may still misattribute, oversimplify, or hallucinate — verify load-bearing claims against the linked sources.
+Forethought.chat is unofficial and not affiliated with Forethought. The model is grounded in Forethought's public writing but may still misattribute, oversimplify, or hallucinate; verify load-bearing claims against the linked sources.

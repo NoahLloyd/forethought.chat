@@ -1,100 +1,62 @@
 import { NextResponse } from "next/server";
-import Anthropic from "@anthropic-ai/sdk";
-import { CHAT_MODEL, client } from "@/lib/anthropic";
 import { buildStablePreamble, formatSearchResult } from "@/lib/prompt";
-import { getCatalog, search } from "@/lib/search";
-import type { ChatMessage, Chunk, SourceCard } from "@/lib/types";
+import { chunksForUrl, getCatalog, search } from "@/lib/search";
+import {
+  DEFAULT_MODEL,
+  DEFAULT_PROVIDER,
+  PROVIDERS,
+  runAgent,
+  type ByokConfig,
+  type Provider,
+} from "@/lib/providers";
+import type {
+  ArticleMention,
+  ChatMessage,
+  Chunk,
+  SourceCard,
+} from "@/lib/types";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-/**
- * Tool-using agent loop.
- *
- * The model receives the persona + corpus catalog (cached) and a single
- * `search` tool. It decides when and how often to retrieve excerpts before
- * answering. We cap at MAX_ITERS so a confused model can't loop forever.
- *
- * Citation markers are assigned globally per request: the first chunk the
- * model ever sees is [1], the next new chunk [2], and so on. Re-finding a
- * chunk in a later search reuses its existing marker so [3] always points
- * to the same passage no matter when the model first read it.
- */
-const MAX_ITERS = 6;
-const SEARCH_DEFAULT_K = 6;
-const SEARCH_MAX_K = 10;
-
-const SEARCH_TOOL: Anthropic.Tool = {
-  name: "search",
-  description:
-    "Search the Forethought corpus for excerpts relevant to a query. Returns numbered excerpts with citation markers ([N]) you can use directly in your answer. Call this multiple times in one turn to broaden, narrow, or follow up — each call returns its own batch of excerpts.",
-  input_schema: {
-    type: "object",
-    properties: {
-      query: {
-        type: "string",
-        description:
-          "A focused search query — the user's actual phrasing, or a tight paraphrase aimed at the topic. Avoid stop-words and filler.",
-      },
-      k: {
-        type: "integer",
-        description: `How many excerpts to return. Default ${SEARCH_DEFAULT_K}, max ${SEARCH_MAX_K}.`,
-        minimum: 1,
-        maximum: SEARCH_MAX_K,
-      },
-    },
-    required: ["query"],
-  },
-};
-
 function makeSnippet(text: string, max = 280): string {
   const cleaned = text.replace(/\s+/g, " ").trim();
   if (cleaned.length <= max) return cleaned;
-  // Try to clip on a sentence boundary inside the budget.
   const window = cleaned.slice(0, max + 80);
   const cutoff = window.lastIndexOf(". ");
   if (cutoff > max - 80 && cutoff < max + 80) return window.slice(0, cutoff + 1);
   return cleaned.slice(0, max).trimEnd() + "…";
 }
 
-/**
- * Place an ephemeral cache breakpoint on the most recent tool_result block,
- * stripping any breakpoints we set on earlier blocks. Combined with the
- * system-prompt breakpoint, this caches the whole prefix up through the
- * last tool result so iteration N+1 reuses iteration N's work. Anthropic
- * caps cache breakpoints per request at 4; this strategy keeps us at 2.
- */
-function applyMessageCacheControl(messages: Anthropic.MessageParam[]): void {
-  for (const m of messages) {
-    if (typeof m.content === "string") continue;
-    for (const block of m.content) {
-      if (
-        typeof block === "object" &&
-        block !== null &&
-        "cache_control" in block
-      ) {
-        delete (block as { cache_control?: unknown }).cache_control;
-      }
-    }
+function isProvider(v: unknown): v is Provider {
+  return typeof v === "string" && (PROVIDERS as readonly string[]).includes(v);
+}
+
+function parseByok(raw: unknown): ByokConfig | null {
+  if (!raw || typeof raw !== "object") return null;
+  const o = raw as Record<string, unknown>;
+  if (
+    isProvider(o.provider) &&
+    typeof o.apiKey === "string" &&
+    o.apiKey.trim().length > 0 &&
+    typeof o.model === "string" &&
+    o.model.trim().length > 0
+  ) {
+    return {
+      provider: o.provider,
+      apiKey: o.apiKey.trim(),
+      model: o.model.trim(),
+    };
   }
-  for (let i = messages.length - 1; i >= 0; i--) {
-    const m = messages[i];
-    if (m.role !== "user" || typeof m.content === "string") continue;
-    const blocks = m.content;
-    for (let j = blocks.length - 1; j >= 0; j--) {
-      const b = blocks[j];
-      if (b.type === "tool_result") {
-        (b as { cache_control?: { type: "ephemeral" } }).cache_control = {
-          type: "ephemeral",
-        };
-        return;
-      }
-    }
-  }
+  return null;
 }
 
 export async function POST(req: Request) {
-  let body: { messages?: ChatMessage[] };
+  let body: {
+    messages?: ChatMessage[];
+    mentions?: ArticleMention[];
+    byok?: unknown;
+  };
   try {
     body = await req.json();
   } catch {
@@ -115,23 +77,42 @@ export async function POST(req: Request) {
     );
   }
 
+  const mentions: ArticleMention[] = [];
+  const seenMentionUrls = new Set<string>();
+  for (const m of body.mentions ?? []) {
+    if (
+      m &&
+      typeof m.url === "string" &&
+      typeof m.title === "string" &&
+      m.url.startsWith("https://") &&
+      !seenMentionUrls.has(m.url)
+    ) {
+      mentions.push({ url: m.url, title: m.title });
+      seenMentionUrls.add(m.url);
+    }
+  }
+
+  const byok = parseByok(body.byok);
+  const provider: Provider = byok?.provider ?? DEFAULT_PROVIDER;
+  const model = byok?.model ?? DEFAULT_MODEL[provider];
+  const apiKey =
+    byok?.apiKey ??
+    (provider === "anthropic" ? process.env.ANTHROPIC_API_KEY ?? "" : "");
+
+  if (!apiKey) {
+    return NextResponse.json(
+      {
+        error:
+          provider === DEFAULT_PROVIDER
+            ? "ANTHROPIC_API_KEY missing on server. Add it to .env or supply your own key in Settings."
+            : "API key required for non-default provider. Open Settings to add one.",
+      },
+      { status: 400 },
+    );
+  }
+
   const catalog = await getCatalog();
-  const preamble = buildStablePreamble(catalog);
-
-  // System prompt is a single cached block. Excerpts no longer live here —
-  // they come back as tool_result blocks in the conversation.
-  const systemBlocks: Anthropic.TextBlockParam[] = [
-    {
-      type: "text",
-      text: preamble,
-      cache_control: { type: "ephemeral" },
-    },
-  ];
-
-  const apiMessages: Anthropic.MessageParam[] = messages.map((m) => ({
-    role: m.role,
-    content: m.content,
-  }));
+  const systemPrompt = buildStablePreamble(catalog);
 
   const encoder = new TextEncoder();
   const stream = new ReadableStream<Uint8Array>({
@@ -148,155 +129,113 @@ export async function POST(req: Request) {
       const seen = new Map<string, SourceCard>();
       let nextMarker = 1;
 
-      const totals = {
-        inputTokens: 0,
-        outputTokens: 0,
-        cacheCreationTokens: 0,
-        cacheReadTokens: 0,
+      const recordChunks = (chunks: Chunk[]) => {
+        let addedAny = false;
+        const numbered: Array<{ chunk: Chunk; marker: number }> = [];
+        for (const chunk of chunks) {
+          let card = seen.get(chunk.id);
+          if (!card) {
+            card = {
+              marker: nextMarker++,
+              url: chunk.url,
+              title: chunk.title,
+              category: chunk.category,
+              authors: chunk.authors,
+              publishedAt: chunk.publishedAt,
+              section: chunk.section,
+              snippet: makeSnippet(chunk.text),
+              source: chunk.source,
+            };
+            seen.set(chunk.id, card);
+            addedAny = true;
+          }
+          numbered.push({ chunk, marker: card.marker });
+        }
+        if (addedAny) {
+          send("sources", {
+            sources: [...seen.values()].sort((a, b) => a.marker - b.marker),
+          });
+        }
+        return numbered;
       };
 
-      let iter = 0;
-      let lastStop: string | null = null;
-      let truncated = false;
+      // Search callback handed to provider adapters: it does retrieval,
+      // assigns markers, emits the `sources` SSE, and returns the
+      // formatted text the model should see as the tool result.
+      const searchCallback = async (query: string, k: number) => {
+        const trimmed = query.trim();
+        if (!trimmed) return formatSearchResult("", []);
+        const hits = await search(trimmed, k);
+        const numbered = recordChunks(hits.map((h) => h.chunk));
+        return formatSearchResult(trimmed, numbered);
+      };
+
+      // Pre-seed mentions: pull chunks for each mentioned URL, register
+      // them through the same registry (so the model gets stable [N]
+      // markers), and hand the formatted text to the provider as the
+      // initial mention seed.
+      let mentionSeed: string | null = null;
+      if (mentions.length > 0) {
+        const seedQuery = mentions.map((m) => `"${m.title}"`).join(" + ");
+        const seedChunks: Chunk[] = [];
+        for (const m of mentions) {
+          const chunks = await chunksForUrl(m.url);
+          // Cap per-article so a long essay doesn't crowd a 2nd mention.
+          for (const c of chunks.slice(0, 4)) seedChunks.push(c);
+        }
+        const numbered = recordChunks(seedChunks);
+        if (numbered.length > 0) {
+          mentionSeed = `# Seeded context: user mentioned these article(s)\n\nThe user @-mentioned: ${mentions
+            .map((m) => `"${m.title}"`)
+            .join(", ")}. Initial excerpts have been retrieved for you below. Read them, then evaluate whether the question is answered or whether you should call \`search\` for additional material before responding.\n\n${formatSearchResult(seedQuery, numbered)}`;
+          send("tool_call", { name: "search", query: seedQuery });
+        }
+      }
 
       try {
-        const c = client();
+        const result = await runAgent(provider, {
+          apiKey,
+          model,
+          systemPrompt,
+          messages,
+          mentionSeed,
+          search: searchCallback,
+          emit: send,
+          abortSignal: req.signal,
+        });
 
-        while (iter < MAX_ITERS) {
-          iter++;
-          applyMessageCacheControl(apiMessages);
-
-          const llmStream = c.messages.stream({
-            model: CHAT_MODEL,
-            max_tokens: 4096,
-            system: systemBlocks,
-            messages: apiMessages,
-            tools: [SEARCH_TOOL],
-          });
-
-          llmStream.on("text", (delta) => {
-            send("text", { delta });
-          });
-
-          const final = await llmStream.finalMessage();
-
-          totals.inputTokens += final.usage.input_tokens;
-          totals.outputTokens += final.usage.output_tokens;
-          totals.cacheCreationTokens +=
-            final.usage.cache_creation_input_tokens ?? 0;
-          totals.cacheReadTokens += final.usage.cache_read_input_tokens ?? 0;
-
-          lastStop = final.stop_reason ?? null;
-
-          // Persist the assistant turn (text + any tool_use blocks) into
-          // history so the next iteration sees it.
-          apiMessages.push({ role: "assistant", content: final.content });
-
-          if (lastStop !== "tool_use") break;
-
-          const toolResultBlocks: Anthropic.ToolResultBlockParam[] = [];
-          for (const block of final.content) {
-            if (block.type !== "tool_use") continue;
-            if (block.name === "search") {
-              const input = (block.input ?? {}) as {
-                query?: unknown;
-                k?: unknown;
-              };
-              const query =
-                typeof input.query === "string" ? input.query.trim() : "";
-              const k = Math.min(
-                Math.max(
-                  typeof input.k === "number" ? Math.floor(input.k) : SEARCH_DEFAULT_K,
-                  1,
-                ),
-                SEARCH_MAX_K,
-              );
-
-              send("tool_call", { name: "search", query });
-
-              let content: string;
-              let isError = false;
-              try {
-                if (!query) {
-                  content = formatSearchResult("", []);
-                } else {
-                  const hits = await search(query, k);
-                  const numbered: Array<{ chunk: Chunk; marker: number }> = [];
-                  let addedAny = false;
-                  for (const h of hits) {
-                    let card = seen.get(h.chunk.id);
-                    if (!card) {
-                      card = {
-                        marker: nextMarker++,
-                        url: h.chunk.url,
-                        title: h.chunk.title,
-                        category: h.chunk.category,
-                        authors: h.chunk.authors,
-                        publishedAt: h.chunk.publishedAt,
-                        section: h.chunk.section,
-                        snippet: makeSnippet(h.chunk.text),
-                      };
-                      seen.set(h.chunk.id, card);
-                      addedAny = true;
-                    }
-                    numbered.push({ chunk: h.chunk, marker: card.marker });
-                  }
-                  content = formatSearchResult(query, numbered);
-                  if (addedAny) {
-                    send("sources", {
-                      sources: [...seen.values()].sort(
-                        (a, b) => a.marker - b.marker,
-                      ),
-                    });
-                  }
-                }
-              } catch (err) {
-                isError = true;
-                content = `Search failed: ${
-                  err instanceof Error ? err.message : "unknown error"
-                }`;
-              }
-
-              toolResultBlocks.push({
-                type: "tool_result",
-                tool_use_id: block.id,
-                content,
-                ...(isError ? { is_error: true } : {}),
-              });
-            } else {
-              toolResultBlocks.push({
-                type: "tool_result",
-                tool_use_id: block.id,
-                content: `Unknown tool: ${block.name}. Available tools: search.`,
-                is_error: true,
-              });
-            }
-          }
-
-          apiMessages.push({ role: "user", content: toolResultBlocks });
-        }
-
-        if (lastStop === "tool_use") {
-          // We hit the iteration cap with the model still wanting to search.
-          // Tell the user; the partial answer (if any) has already streamed.
-          truncated = true;
-          send("error", {
-            message: `agent stopped after ${MAX_ITERS} tool calls`,
-          });
+        if (result.truncated) {
+          send("error", { message: `agent stopped after iteration cap` });
         }
 
         send("done", {
-          stopReason: truncated ? "max_iterations" : lastStop,
-          iterations: iter,
-          usage: totals,
+          stopReason: result.truncated ? "max_iterations" : result.stopReason,
+          iterations: result.iterations,
+          usage: result.usage,
+          provider,
+          model,
         });
       } catch (err) {
-        const msg =
-          err instanceof Anthropic.APIError
-            ? `${err.status ?? "?"} — ${err.message}`
-            : err instanceof Error
-              ? err.message
-              : "unknown error";
+        // Gemini wraps its error JSON inside the SDK error message, then
+        // wraps that string in another JSON. Try to peel both layers and
+        // surface the human-readable message; fall back to raw text.
+        const raw = err instanceof Error ? err.message : "unknown error";
+        let msg = raw;
+        try {
+          const outer = JSON.parse(raw) as { error?: { message?: string } };
+          if (typeof outer?.error?.message === "string") {
+            try {
+              const inner = JSON.parse(outer.error.message) as {
+                error?: { message?: string };
+              };
+              msg = inner?.error?.message ?? outer.error.message;
+            } catch {
+              msg = outer.error.message;
+            }
+          }
+        } catch {
+          // Not JSON; keep raw.
+        }
         send("error", { message: msg });
       } finally {
         controller.close();
