@@ -1,25 +1,49 @@
-"""Numeric answer extraction and tolerance-based grading."""
+"""Numeric answer extraction and tolerance-based grading.
+
+Bug fixed in this version: the previous regex parsed multi-digit runs as
+1-3-digit prefixes (so "AI 2027" became "202" + "7") because the digit class
+was capped at three. The new pattern uses a comma-grouped-or-greedy
+alternation so "2027" parses as one number and "200,000" still parses as one.
+
+Also new: when target.unit is "x" or "probability", we filter candidate
+matches to the unit-appropriate ones before picking the answer. This prevents
+bare numbers (years, doc IDs, citation markers) from outranking the actual
+unit-bearing match the benchmark cares about.
+"""
 
 from __future__ import annotations
 
 import re
+from dataclasses import dataclass
 
 from pydantic import BaseModel
 
 from forethought_bench.schema import NumericTarget
 
-# Numbers in the agent's prose: 50, 50%, 0.5, 1.5x, ~5X, 21x, $1 trillion, etc.
-# Capture the leading numeric token; unit normalization happens downstream.
+# Regex notes (re.VERBOSE | re.IGNORECASE):
+#   - Comma-grouped alternative ("1,234,567") is FIRST so it wins over the
+#     plain-digits alternative on backtrack.
+#   - Plain alternative is greedy `\d+(?:\.\d+)?` so 2027 stays a single
+#     token; the old `\d{1,3}` could stop at 3 digits.
+#   - Suffix `fold` / `-fold` covers "8-fold" / "5 fold" multipliers.
 _NUM_RE = re.compile(
     r"""
     (?P<approx>~|approximately\s+|roughly\s+|about\s+|around\s+)?
     (?P<sign>-)?
-    (?P<num>\d{1,3}(?:,\d{3})*(?:\.\d+)?|\.\d+)
+    (?P<num>\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?)
     \s*
-    (?P<suffix>%|x|X|×|\s+percent|\s+percentage\s+points?|trillion|billion|million)?
+    (?P<suffix>%|x|×|fold|-fold|percent|percentage\s+points?|trillion|billion|million)?
     """,
-    re.VERBOSE,
+    re.VERBOSE | re.IGNORECASE,
 )
+
+_WORD_PROBS: dict[str, float] = {
+    "half": 0.5,
+    "a third": 0.33,
+    "two thirds": 0.67,
+    "a quarter": 0.25,
+    "three quarters": 0.75,
+}
 
 
 class NumericResult(BaseModel):
@@ -27,8 +51,16 @@ class NumericResult(BaseModel):
     target: float
     unit: str | None
     within_tolerance: bool
-    distance: float | None  # absolute distance from target
-    rationale: str  # why this verdict; helps debug bad extractions
+    distance: float | None
+    rationale: str
+
+
+@dataclass(frozen=True)
+class _Candidate:
+    value: float
+    suffix: str  # normalized: "%", "x", "fold", "trillion", ... or "" for bare
+    surface: str
+    rationale: str
 
 
 def extract_numeric_value(
@@ -38,69 +70,27 @@ def extract_numeric_value(
 ) -> tuple[float | None, str]:
     """Extract a numeric value from prose.
 
-    Returns (value, rationale). When `prefer_unit` is set (e.g. "probability"),
-    we prefer percentages and 0-1 floats over arbitrary integers in the text.
-
-    For probability targets the function:
-      - returns 0.5 for both "50%" and "0.5"
-      - returns 0.5 for "around half" via a small lookup
-    For multiplier targets (unit="x") it strips the suffix.
-    Currency / order-of-magnitude units are normalized to the bare number.
+    Returns (value, rationale). When `prefer_unit` is set, candidates that
+    don't match the unit are filtered out before the first-match-wins rule.
     """
     if not text:
         return None, "empty answer"
 
-    lowered = text.lower()
-    if prefer_unit == "probability":
-        # Word-form probabilities — small lookup for the common cases.
-        for word, value in _WORD_PROBS.items():
-            if re.search(rf"\b{re.escape(word)}\b", lowered):
-                return value, f"matched word '{word}' -> {value}"
-
-    candidates: list[tuple[float, str]] = []
-    for m in _NUM_RE.finditer(text):
-        raw = m.group("num").replace(",", "")
-        try:
-            n = float(raw)
-        except ValueError:
-            continue
-        if m.group("sign") == "-":
-            n = -n
-        suffix = (m.group("suffix") or "").strip().lower()
-
-        if suffix in {"%", "percent", "percentage point", "percentage points"}:
-            value = n / 100.0 if prefer_unit == "probability" else n
-            candidates.append((value, f"{m.group(0).strip()!r} -> {value}"))
-        elif suffix in {"x", "×"}:
-            candidates.append((n, f"{m.group(0).strip()!r} -> {n}x"))
-        elif suffix == "trillion":
-            candidates.append((n * 1e12, f"{m.group(0).strip()!r} -> {n * 1e12}"))
-        elif suffix == "billion":
-            candidates.append((n * 1e9, f"{m.group(0).strip()!r} -> {n * 1e9}"))
-        elif suffix == "million":
-            candidates.append((n * 1e6, f"{m.group(0).strip()!r} -> {n * 1e6}"))
-        else:
-            # Bare number. For probability targets, accept 0..1 floats.
-            if prefer_unit == "probability" and 0.0 <= n <= 1.0:
-                candidates.append((n, f"bare float in [0,1]: {n}"))
-            elif prefer_unit != "probability":
-                candidates.append((n, f"bare number: {n}"))
-
+    candidates = _candidates(text, prefer_unit=prefer_unit)
     if not candidates:
         return None, "no numeric token matched"
 
-    # Prefer the first candidate by default; for probability we already filtered.
-    value, rat = candidates[0]
-    return value, rat
+    filtered = _filter_for_unit(candidates, prefer_unit)
+    chosen = filtered[0] if filtered else candidates[0]
+    return chosen.value, chosen.rationale
 
 
 def score_numeric(answer: str, target: NumericTarget) -> NumericResult:
-    """Grade a numeric claim with rtol/atol tolerance.
+    """Grade a numeric claim.
 
-    A pass requires |extracted - target| <= max(rtol * |target|, atol).
+    Pass requires |extracted - target| <= max(rtol * |target|, atol).
     """
-    prefer_unit = target.unit
-    extracted, rationale = extract_numeric_value(answer, prefer_unit=prefer_unit)
+    extracted, rationale = extract_numeric_value(answer, prefer_unit=target.unit)
     if extracted is None:
         return NumericResult(
             extracted=None,
@@ -125,10 +115,88 @@ def score_numeric(answer: str, target: NumericTarget) -> NumericResult:
     )
 
 
-_WORD_PROBS: dict[str, float] = {
-    "half": 0.5,
-    "a third": 0.33,
-    "two thirds": 0.67,
-    "a quarter": 0.25,
-    "three quarters": 0.75,
-}
+def _candidates(text: str, *, prefer_unit: str | None) -> list[_Candidate]:
+    out: list[_Candidate] = []
+    lowered = text.lower()
+
+    if prefer_unit == "probability":
+        for word, value in _WORD_PROBS.items():
+            if re.search(rf"\b{re.escape(word)}\b", lowered):
+                out.append(
+                    _Candidate(
+                        value=value,
+                        suffix="word_prob",
+                        surface=word,
+                        rationale=f"matched word '{word}' -> {value}",
+                    )
+                )
+
+    for m in _NUM_RE.finditer(text):
+        raw = m.group("num").replace(",", "")
+        try:
+            n = float(raw)
+        except ValueError:
+            continue
+        if m.group("sign") == "-":
+            n = -n
+        suffix = _normalize_suffix((m.group("suffix") or "").strip().lower())
+        surface = m.group(0).strip()
+
+        if suffix == "%":
+            value = n / 100.0 if prefer_unit == "probability" else n
+            out.append(
+                _Candidate(
+                    value=value, suffix="%", surface=surface,
+                    rationale=f"{surface!r} -> {value}",
+                )
+            )
+        elif suffix in {"x", "fold"}:
+            out.append(
+                _Candidate(
+                    value=n, suffix=suffix, surface=surface,
+                    rationale=f"{surface!r} -> {n}{suffix}",
+                )
+            )
+        elif suffix == "trillion":
+            out.append(_Candidate(value=n * 1e12, suffix=suffix, surface=surface,
+                                   rationale=f"{surface!r} -> {n * 1e12}"))
+        elif suffix == "billion":
+            out.append(_Candidate(value=n * 1e9, suffix=suffix, surface=surface,
+                                   rationale=f"{surface!r} -> {n * 1e9}"))
+        elif suffix == "million":
+            out.append(_Candidate(value=n * 1e6, suffix=suffix, surface=surface,
+                                   rationale=f"{surface!r} -> {n * 1e6}"))
+        else:
+            out.append(_Candidate(value=n, suffix="", surface=surface,
+                                   rationale=f"bare number: {n}"))
+    return out
+
+
+def _filter_for_unit(
+    candidates: list[_Candidate], prefer_unit: str | None
+) -> list[_Candidate]:
+    if prefer_unit == "x":
+        return [c for c in candidates if c.suffix in {"x", "fold"}]
+    if prefer_unit == "probability":
+        return [
+            c for c in candidates
+            if c.suffix in {"%", "word_prob"}
+            or (c.suffix == "" and 0.0 <= c.value <= 1.0)
+        ]
+    return candidates
+
+
+def _normalize_suffix(s: str) -> str:
+    if not s:
+        return ""
+    if s in {"x", "×"}:
+        return "x"
+    if s in {"fold", "-fold"}:
+        return "fold"
+    if s == "%":
+        return "%"
+    if s.startswith(("percent", "percentage")):
+        return "%"
+    if s in {"trillion", "billion", "million"}:
+        return s
+    return s

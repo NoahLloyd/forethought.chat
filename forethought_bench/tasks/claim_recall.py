@@ -13,10 +13,17 @@ Composite score per item:
 
 Failure-mode-specific rollups (fabricated/unsupportive/missing-hedges) are
 reported separately so a single composite doesn't hide systematic errors.
+
+Judge configuration: defaults to a ClaudeCodeJudge using `--model=haiku`
+(claude-haiku-4-5-20251001), which is in a different model family than the
+chat app's claude-sonnet-4-6, satisfying the design rule "model under test
+must never equal a judge model." Use ClaudeJudge fallback if the `claude`
+CLI isn't installed (set FOREBENCH_USE_API=1 to force).
 """
 
 from __future__ import annotations
 
+import os
 from typing import Any
 
 from inspect_ai import Task, task
@@ -25,7 +32,7 @@ from inspect_ai.solver import TaskState
 
 from forethought_bench.agents import ForethoughtChatAgent
 from forethought_bench.corpus import Corpus
-from forethought_bench.judges import ClaudeJudge, Judge
+from forethought_bench.judges import ClaudeJudge, Judge, default_judge
 from forethought_bench.schema import AgentOutput, Item, TrackName
 from forethought_bench.scoring import (
     check_all_citations,
@@ -48,13 +55,8 @@ def claim_recall_scorer(corpus: Corpus, judge: Judge):
         item = Item.model_validate(state.metadata["item"])
         output = AgentOutput.model_validate(state.metadata["agent_output"])
 
-        # Stage A: correctness.
         correctness, correctness_rationale = await _score_correctness(item, output, judge)
-
-        # Stage B: hedge preservation.
         hedge = score_hedge_preservation(output.final_answer, item.hedge_terms)
-
-        # Stage C: citation faithfulness (4-stage pipeline).
         checks = await check_all_citations(output, corpus, judge)
         cit_summary = faithfulness_score(checks)
 
@@ -103,23 +105,40 @@ async def _score_correctness(
     return 0.0, "Item has no numeric target and no accepted phrasings."
 
 
+def _build_judge(judge_model: str) -> Judge:
+    """Build a Judge respecting FOREBENCH_USE_API for opt-out from CLI billing."""
+    if os.environ.get("FOREBENCH_USE_API") == "1":
+        # Force API path; resolve alias to a pinned model id.
+        resolved = {
+            "haiku": "claude-haiku-4-5-20251001",
+            "sonnet": "claude-sonnet-4-6",
+            "opus": "claude-opus-4-7",
+        }.get(judge_model, judge_model)
+        return ClaudeJudge(model=resolved)
+    return default_judge(model=judge_model)
+
+
 @task
 def claim_recall(
     *,
     base_url: str = "http://localhost:3000",
     content_dir: str | None = None,
     include_held_out: bool = False,
+    judge_model: str = "haiku",
 ) -> Task:
     """Track 2: Specific Claim Recall.
 
     Run with:
-      inspect eval forethought_bench.tasks.claim_recall \\
+      inspect eval forethought_bench/tasks/claim_recall.py \\
         -T base_url=http://localhost:3000 \\
         -T content_dir=/path/to/forethoughtchat/data/content
+
+    Set FOREBENCH_USE_API=1 to force API billing instead of Claude Code
+    subscription billing.
     """
     resolved = resolve_content_dir(content_dir)
     corpus = Corpus.from_directory(resolved)
-    judge = ClaudeJudge()
+    judge = _build_judge(judge_model)
     agent = ForethoughtChatAgent(base_url=base_url)
 
     items = load_items_for_track(
