@@ -5,8 +5,10 @@ A benchmark for agents that answer macrostrategy questions grounded in
 open research when the corpus runs out.
 
 Designed for **fast iteration**: the full smoke benchmark (29 items across 6
-tracks) runs in ~6-9 minutes against a live chat agent, billed against a
-Claude Pro/Max subscription via the `claude` CLI rather than API costs.
+tracks) runs in ~6-9 minutes. The default agent under test (`ClaudeCliAgent`)
+spawns `claude -p` per item, billing against your Claude Pro/Max
+subscription. Judges go through the same `claude -p` path. End-to-end the
+benchmark uses **zero Anthropic API credit** in the default config.
 
 ## Tracks
 
@@ -30,11 +32,12 @@ Total: **29 smoke items**, expandable via `tier="extended"` (Track 2 already has
 uv venv
 uv pip install -e ".[dev]"
 
-# Subscription billing path (default): claude CLI authenticated via `claude` once
+# Auth: claude CLI signed in to a Pro/Max account
 which claude
+claude  # one-shot interactive run to authenticate, then quit
 
-# API fallback (set FOREBENCH_USE_API=1 at run time)
-export ANTHROPIC_API_KEY=sk-...
+# Node deps for the search wrapper (search.ts uses @forethought/agent)
+cd .. && pnpm install
 ```
 
 Corpus location:
@@ -45,15 +48,23 @@ export FORETHOUGHT_CONTENT_DIR=../web/data/content
 
 ## Running
 
-**Run the full smoke benchmark** (one shell):
+The default agent (`ClaudeCliAgent`) talks to the corpus directly through
+a Node-side search wrapper, so you do NOT need to start `pnpm dev`.
+
+```bash
+bash scripts/run_all_tracks.sh
+open report.html
+```
+
+If you want to grade the deployed HTTP path instead (this bills
+`ANTHROPIC_API_KEY`, see "Cost and billing" below):
 
 ```bash
 # In one shell: chat app
-cd /path/to/forethoughtchat && pnpm dev
+cd ../web && pnpm dev
 
 # In another shell: bench
-bash scripts/run_all_tracks.sh
-open report.html
+FOREBENCH_AGENT=http bash scripts/run_all_tracks.sh
 ```
 
 **Run a single track**:
@@ -116,19 +127,31 @@ Per-citation verdict: `valid` / `fabricated` / `real_but_unsupportive` / `partia
 
 ## Cost and billing
 
-- **Default**: judge calls go through `claude -p` subprocess, billed against
-  your Claude Pro/Max subscription. Each call counts as ~1 message in your
-  rate limit.
-- **API fallback**: `FOREBENCH_USE_API=1` to bill `ANTHROPIC_API_KEY`.
+There are two sources of model spend in a bench run: **judge calls** and the
+**agent under test**. Both are subscription-billed in the default config.
 
-Per-call cost (notional, what API would charge):
+| Component        | Default (subscription)         | Override → API spend                              |
+|------------------|--------------------------------|---------------------------------------------------|
+| Judge            | `claude -p` (Pro/Max OAuth)    | `FOREBENCH_USE_API=1` → bills `ANTHROPIC_API_KEY` |
+| Agent under test | `claude -p` (Pro/Max OAuth)    | `FOREBENCH_AGENT=http` → bills `ANTHROPIC_API_KEY` via `/api/chat` |
+
+The default `FOREBENCH_AGENT=cli` keeps the agent on the subscription path
+by spawning `claude -p` with a Bash tool that calls
+`scripts/forethought-search.sh` (a wrapper around the same
+`@forethought/agent` retrieval the production app uses). Citations and
+markers behave identically to the deployed chat agent.
+
+Per-call cost (notional, what API would charge if you used the API path):
 
 | Judge model | Cold cache | Warm cache |
 |---|---|---|
 | `opus` (default) | ~$0.10 | ~$0.025 |
 | `haiku` | ~$0.04 | ~$0.012 |
 
-Full smoke benchmark: ~80-150 messages, ~$2-4 notional, ~6-9 min wall time.
+Full smoke benchmark: ~80-150 messages, ~6-9 min wall time. On the default
+subscription path that's ~150 messages against your Pro/Max daily cap and
+$0 in API spend; on the API path it's ~$2-4 (judges) plus a comparable
+amount for the agent's tool-loop iterations.
 
 ## Versioning
 

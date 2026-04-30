@@ -19,7 +19,7 @@ from typing import Literal
 from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_ai.solver import Generate, Solver, TaskState, solver
 
-from forethought_bench.agents import Agent
+from forethought_bench.agents import Agent, ClaudeCliAgent, ForethoughtChatAgent
 from forethought_bench.schema import Item, TrackName
 
 Tier = Literal["smoke", "extended", "all"]
@@ -124,6 +124,31 @@ def _state_question(state: TaskState) -> str:
         if isinstance(content, str):
             return content
     return ""
+
+
+def build_agent(base_url: str) -> Agent:
+    """Pick the agent under test based on FOREBENCH_AGENT.
+
+    "cli" (default) : ClaudeCliAgent — `claude -p`, subscription-billed.
+                      Same prompt + retrieval as production. base_url is
+                      ignored.
+    "http"          : ForethoughtChatAgent — POSTs to {base_url}/api/chat.
+                      Bills against ANTHROPIC_API_KEY. Use only when you
+                      explicitly want to grade the deployed HTTP behavior.
+
+    The default is intentionally "cli" because the previous default
+    silently burned API spend even when the bench README claimed
+    subscription billing. If you want the old behavior, set the env var
+    explicitly.
+    """
+    mode = os.environ.get("FOREBENCH_AGENT", "cli").strip().lower()
+    if mode == "http":
+        return ForethoughtChatAgent(base_url=base_url)
+    if mode == "cli":
+        return ClaudeCliAgent()
+    raise ValueError(
+        f"FOREBENCH_AGENT must be 'cli' or 'http', got {mode!r}"
+    )
 
 
 def resolve_content_dir(content_dir: str | None) -> str:
