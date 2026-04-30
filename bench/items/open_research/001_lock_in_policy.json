@@ -1,0 +1,13 @@
+{
+  "id": "open_research_001_lock_in_policy",
+  "track": "open_research",
+  "version": 1,
+  "tier": "smoke",
+  "question": "Forethought's lock-in research argues that AGI could enable practical immortality of institutions through technological enforcement. What policy implications does this have for democratic institutions today, before AGI? Identify at least three concrete near-term policy levers and explain the trade-offs of each.",
+  "metadata": {
+    "topics": ["lock-in", "policy"],
+    "difficulty": "hard",
+    "expected_to_cite": ["agi-and-lock-in", "beyond-existential-risk"],
+    "note": "Open-domain extension - Forethought hasn't published specific near-term policy recommendations on lock-in but has the underlying analysis."
+  }
+}

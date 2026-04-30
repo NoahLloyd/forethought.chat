@@ -1,0 +1,31 @@
+{
+  "id": "synthesis_002_lock_in_window",
+  "track": "synthesis",
+  "version": 1,
+  "tier": "smoke",
+  "question": "Synthesise Finnveden, Riedel, and Shulman's claims about lock-in feasibility with Davidson and Houlden's claims about software intelligence explosion compression to evaluate the size of the decision window humanity has to set up institutions before lock-in becomes possible. How tight is that window if the SIE compression scenario plays out?",
+  "expected_citations": [
+    {
+      "url": "https://www.forethought.org/research/agi-and-lock-in",
+      "title": "AGI and Lock-in",
+      "authors": ["Lukas Finnveden", "Jess Riedel", "Carl Shulman"]
+    },
+    {
+      "url": "https://www.forethought.org/research/how-quick-and-big-would-a-software-intelligence-explosion-be",
+      "title": "How quick and big would a software intelligence explosion be?",
+      "authors": ["Tom Davidson", "Tom Houlden"]
+    }
+  ],
+  "required_elements": [
+    "AGI and Lock-in argues at least 20% subjective probability that a trillion-year stable society is feasible",
+    "Lock-in becomes plausible once AGI can preserve goals via stored minds/specifications and prevent drift via surveillance",
+    "The SIE compression paper estimates ~60% probability of compressing 3+ years of AI progress into <1 year",
+    "Combining: the decision-making window for institutional choices about lock-in compresses from years to months under the central SIE scenario",
+    "Implication: pre-AGI agreements / institutional design must be in place before the compression begins, not negotiated during"
+  ],
+  "metadata": {
+    "relationship": "complements",
+    "topics": ["lock-in", "intelligence-explosion", "policy"],
+    "difficulty": "hard"
+  }
+}

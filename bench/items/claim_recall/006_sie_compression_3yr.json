@@ -1,0 +1,46 @@
+{
+  "id": "claim_recall_006",
+  "track": "claim_recall",
+  "version": 1,
+  "tier": "smoke",
+  "question": "According to Forethought's 'How quick and big would a software intelligence explosion be?' paper, what probability do the authors assign to the software intelligence explosion compressing more than 3 years of AI progress into less than 1 year?",
+  "claim_type": "numeric",
+  "numeric_target": {
+    "value": 0.6,
+    "unit": "probability",
+    "tolerance": {
+      "rtol": 0.12,
+      "atol": 0.05
+    }
+  },
+  "accepted_phrasings": [
+    "around 60%",
+    "~60%",
+    "roughly 60% probability",
+    "about 60 percent",
+    "probably (~60%)"
+  ],
+  "hedge_terms": [
+    "probably",
+    "~",
+    "we think"
+  ],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/how-quick-and-big-would-a-software-intelligence-explosion-be",
+    "title": "How quick and big would a software intelligence explosion be?",
+    "authors": [
+      "Tom Davidson",
+      "Tom Houlden"
+    ]
+  },
+  "source_passage": "We think that the software intelligence explosion will probably (~60%) compress >3 years of AI progress into <1 year, but is somewhat unlikely (~20%) to compress >10 years into <1 year.",
+  "metadata": {
+    "topics": [
+      "intelligence-explosion",
+      "compression",
+      "forecasting"
+    ],
+    "difficulty": "medium",
+    "hedge_preservation_critical": true
+  }
+}

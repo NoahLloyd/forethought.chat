@@ -1,0 +1,22 @@
+{
+  "id": "arguments_004_country_outgrowth",
+  "track": "arguments",
+  "version": 1,
+  "tier": "smoke",
+  "question": "Reconstruct Davidson's argument in 'Could one country outgrow the rest of the world?' for why AGI could enable a single country to dominate global GDP. Explain the difference between exponential and superexponential growth and why the latter implies divergence.",
+  "required_elements": [
+    "Exponential growth at the same rate maintains constant relative sizes between countries",
+    "AGI enables superexponential growth where the growth rate itself increases over time",
+    "Under superexponential growth, larger economies grow faster than smaller economies (in absolute or relative terms)",
+    "An initial economic lead amplifies and compounds over time under superexponential growth",
+    "A leading AI country could eventually produce >99% of global output",
+    "Analogy to Britain's industrial-revolution outgrowth (8x share of world GDP) supports the plausibility"
+  ],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/could-one-country-outgrow-the-rest-of-the-world",
+    "title": "Could one country outgrow the rest of the world?",
+    "authors": ["Tom Davidson"]
+  },
+  "source_passage": "When countries grow at the same exponential rate, they maintain their relative sizes. But after we develop AGI, there may be a period of superexponential growth, with growth becoming faster and faster over time. If this superexponential growth lasts for long enough, the leader could pull further and further ahead of the others, eventually producing >99% of global output. Under superexponential growth, the relative size of different countries' GDP is not constant over time. An initial economic lead becomes bigger and bigger over time.",
+  "metadata": {"topics": ["economic-growth", "geopolitics"], "difficulty": "hard"}
+}

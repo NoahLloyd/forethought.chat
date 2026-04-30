@@ -1,0 +1,42 @@
+{
+  "id": "claim_recall_004",
+  "track": "claim_recall",
+  "version": 1,
+  "tier": "smoke",
+  "question": "In Forethought's 'How quick and big would a software intelligence explosion be?' (Davidson & Houlden), what was the geometric mean of researcher estimates of the total speed-up from ASARA?",
+  "claim_type": "numeric",
+  "numeric_target": {
+    "value": 5.0,
+    "unit": "x",
+    "tolerance": {
+      "rtol": 0.1,
+      "atol": 0.0
+    }
+  },
+  "accepted_phrasings": [
+    "5x",
+    "5X",
+    "5-fold",
+    "a factor of 5",
+    "geometric mean of 5x"
+  ],
+  "hedge_terms": [],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/how-quick-and-big-would-a-software-intelligence-explosion-be",
+    "title": "How quick and big would a software intelligence explosion be?",
+    "authors": [
+      "Tom Davidson",
+      "Tom Houlden"
+    ]
+  },
+  "source_passage": "When asked outright about the total speed-up, responses varied from 2X to 20X with a geometric mean of 5X.",
+  "metadata": {
+    "topics": [
+      "asara",
+      "intelligence-explosion",
+      "speed-up"
+    ],
+    "difficulty": "easy",
+    "note": "No source hedges; this is a survey statistic. The hedge_preserved sub-test is vacuously satisfied."
+  }
+}

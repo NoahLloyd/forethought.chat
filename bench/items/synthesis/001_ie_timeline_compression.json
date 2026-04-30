@@ -1,0 +1,31 @@
+{
+  "id": "synthesis_001_ie_timeline_compression",
+  "track": "synthesis",
+  "version": 1,
+  "tier": "smoke",
+  "question": "If a software intelligence explosion compresses 3+ years of AI progress into <1 year with ~60% probability, what does Davidson, Hadshar, and MacAskill's categorisation of IE types suggest about whether this compressed scenario is most likely a software, AI-technology, or full-stack IE - and what are the implications for which actors can control such an explosion?",
+  "expected_citations": [
+    {
+      "url": "https://www.forethought.org/research/three-types-of-intelligence-explosion",
+      "title": "Three Types of Intelligence Explosion",
+      "authors": ["Tom Davidson", "Rose Hadshar", "William MacAskill"]
+    },
+    {
+      "url": "https://www.forethought.org/research/how-quick-and-big-would-a-software-intelligence-explosion-be",
+      "title": "How quick and big would a software intelligence explosion be?",
+      "authors": ["Tom Davidson", "Tom Houlden"]
+    }
+  ],
+  "required_elements": [
+    "The 'Three Types' paper identifies software IE as having the shortest feedback-loop lags (~3 months training cycles)",
+    "The 'Quick & Big' paper assigns ~60% probability to software IE compressing 3+ years into <1 year",
+    "Software IE concentrates power within one country or company because it requires no chip-fabrication scale-up",
+    "Full-stack IE would necessarily spread across multiple countries and industries (chip fabs are geographically distributed)",
+    "Integration: combining the timeline (~60% for fast software IE) with the type categorisation, fast compression scenarios are systematically more likely to favor concentrated control"
+  ],
+  "metadata": {
+    "relationship": "complements",
+    "topics": ["intelligence-explosion", "timeline", "geopolitics"],
+    "difficulty": "hard"
+  }
+}

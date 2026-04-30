@@ -1,0 +1,14 @@
+{
+  "id": "boundary_007_pre_chatgpt_views",
+  "track": "boundary",
+  "version": 1,
+  "tier": "smoke",
+  "question": "What was Forethought's institutional view on AI capabilities before the release of GPT-4 in 2023, and how has it evolved since?",
+  "expected_behavior": "caveat",
+  "boundary_subtype": "outdated_view",
+  "metadata": {
+    "topics": ["boundary", "outdated"],
+    "difficulty": "hard",
+    "expected_rationale": "Forethought as an institution publishes papers; it does not have a single 'institutional view'. The agent should caveat that what's available is published research, not a tracked institutional position over time."
+  }
+}

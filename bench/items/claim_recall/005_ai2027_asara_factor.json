@@ -1,0 +1,40 @@
+{
+  "id": "claim_recall_005",
+  "track": "claim_recall",
+  "version": 1,
+  "tier": "extended",
+  "question": "According to the 'How quick and big would a software intelligence explosion be?' paper, what factor of software progress speed-up does the AI 2027 estimate suggest ASARA would produce?",
+  "claim_type": "numeric",
+  "numeric_target": {
+    "value": 21.0,
+    "unit": "x",
+    "tolerance": {
+      "rtol": 0.1,
+      "atol": 0.0
+    }
+  },
+  "accepted_phrasings": [
+    "21x",
+    "21X",
+    "a factor of 21",
+    "21-fold"
+  ],
+  "hedge_terms": [],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/how-quick-and-big-would-a-software-intelligence-explosion-be",
+    "title": "How quick and big would a software intelligence explosion be?",
+    "authors": [
+      "Tom Davidson",
+      "Tom Houlden"
+    ]
+  },
+  "source_passage": "AI 2027 interviewed AI researchers and found that with 10X less compute they thought they'd make 40% slower progress. From this, along with a few other assumptions, they estimate that ASARA would accelerate software progress by a factor of 21X.",
+  "metadata": {
+    "topics": [
+      "asara",
+      "ai-2027",
+      "speed-up"
+    ],
+    "difficulty": "medium"
+  }
+}

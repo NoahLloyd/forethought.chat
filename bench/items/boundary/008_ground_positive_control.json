@@ -1,0 +1,14 @@
+{
+  "id": "boundary_008_positive_control",
+  "track": "boundary",
+  "version": 1,
+  "tier": "smoke",
+  "question": "What probability does Davidson, Hadshar, and MacAskill's 'Three Types of Intelligence Explosion' assign to the chip technology feedback loop alone being sufficient to sustain accelerating progress?",
+  "expected_behavior": "ground",
+  "boundary_subtype": "mixed",
+  "metadata": {
+    "topics": ["boundary", "positive-control"],
+    "difficulty": "easy",
+    "expected_rationale": "This is squarely in the corpus. Agent should answer ~65% and cite the paper. If it refuses or punts, that's a 'failed-to-ground-when-should-have' failure."
+  }
+}

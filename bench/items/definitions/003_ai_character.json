@@ -1,0 +1,21 @@
+{
+  "id": "definitions_003_ai_character",
+  "track": "definitions",
+  "version": 1,
+  "tier": "smoke",
+  "question": "What does Forethought mean by 'AI character' in MacAskill and Davidson's work?",
+  "claim_type": "verbal",
+  "accepted_phrasings": [
+    "A set of stable behavioural dispositions that shapes how an agent navigates ethically significant situations",
+    "The character of an AI system as instantiated in weights, scaffolding, system prompts, and classifiers",
+    "How obedient, honest, cooperative, or altruistic AIs are, and in what circumstances",
+    "stable behavioural dispositions of an AI system as instantiated in its weights and any scaffolding"
+  ],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/the-importance-of-ai-character",
+    "title": "The importance of AI character",
+    "authors": ["William MacAskill", "Tom Davidson"]
+  },
+  "source_passage": "By \"character\" we mean a set of stable behavioural dispositions that shapes (among other things) how an agent navigates ethically significant situations involving choice, ambiguity, or conflicting considerations. By \"AI character\" we mean the character of an AI system as instantiated in not just the weights of one AI, but also any scaffolding (e.g. the system prompt, any classifiers restricting the AI's outputs) or even in a collection of AIs working together as functionally one entity.",
+  "metadata": {"topics": ["ai-character", "alignment"], "difficulty": "medium"}
+}
