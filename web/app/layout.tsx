@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
+import { Analytics } from "@vercel/analytics/next";
 import "./globals.css";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://forethought.chat"),
   title: {
-    default: "Forethought.chat — converse with Forethought's research",
+    default: "Forethought.chat · converse with Forethought's research",
     template: "%s · Forethought.chat",
   },
   description:
@@ -39,7 +40,7 @@ export default function RootLayout({
         {/*
           Newsreader approximates Klim's Signifier (forethought.org's
           serif); DM Sans approximates TypeType's TT Hoves. Both are
-          paid foundry fonts on the real site — swap if licensed.
+          paid foundry fonts on the real site; swap if licensed.
         */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link
@@ -52,7 +53,10 @@ export default function RootLayout({
           rel="stylesheet"
         />
       </head>
-      <body className="min-h-dvh">{children}</body>
+      <body className="min-h-dvh">
+        {children}
+        <Analytics />
+      </body>
     </html>
   );
 }

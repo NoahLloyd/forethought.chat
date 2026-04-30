@@ -20,6 +20,15 @@ export type Chunk = {
   section: string | null;
   text: string;
   tokens: string[];
+  /**
+   * Where in the source article this chunk came from. `abstract` chunks
+   * (the title + the `**Abstract.**` paragraphs) are NOT visible in the
+   * rendered DOM on forethought.org — that prose is only stored in
+   * `<meta>` tags and the `__NEXT_DATA__` JSON. Citations to abstract
+   * chunks should drop the Chrome `#:~:text=` fragment because there is
+   * no on-page text to scroll to. Everything else is `body`.
+   */
+  source?: "abstract" | "body";
 };
 
 export type CatalogEntry = {
@@ -57,15 +66,26 @@ export type RetrievedChunk = {
 
 /**
  * The transport contract between the chat UI and `/api/chat`.
- * History is plain text — no client-side citation state to round-trip.
+ * History is plain text. No client-side citation state to round-trip.
  */
 export type ChatMessage = {
   role: "user" | "assistant";
   content: string;
 };
 
+/**
+ * An article the user @-mentioned in the composer. The server seeds the
+ * agent with chunks from the article so it has context before the loop
+ * starts; the agent is still free to call `search` for more.
+ */
+export type ArticleMention = {
+  url: string;
+  title: string;
+};
+
 export type ChatRequest = {
   messages: ChatMessage[];
+  mentions?: ArticleMention[];
 };
 
 /**
@@ -104,6 +124,12 @@ export type SourceCard = {
   authors: string[];
   publishedAt: string | null;
   section: string | null;
-  /** The retrieved snippet — handy for hover previews and "show passage". */
+  /** The retrieved snippet, handy for hover previews and "show passage". */
   snippet: string;
+  /**
+   * Where in the source article the chunk lives. Used to decide whether
+   * citations can text-fragment-link to a position on forethought.org
+   * (only `body` chunks have on-page text to scroll to).
+   */
+  source?: "abstract" | "body";
 };

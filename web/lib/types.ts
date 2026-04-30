@@ -4,6 +4,7 @@
  */
 export type {
   AgentEvent,
+  ArticleMention,
   CatalogEntry,
   Category,
   ChatMessage,

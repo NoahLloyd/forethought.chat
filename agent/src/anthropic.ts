@@ -14,7 +14,7 @@ export function client(): Anthropic {
   const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     throw new Error(
-      "ANTHROPIC_API_KEY is not set - copy .env.example to .env.local and add a key from https://console.anthropic.com/",
+      "ANTHROPIC_API_KEY is not set. Copy .env.example to .env.local and add a key from https://console.anthropic.com/",
     );
   }
   _client = new Anthropic({ apiKey });

@@ -4,7 +4,7 @@
  * The system prompt is a single stable preamble (persona + corpus catalog).
  * It is sent on every request with `cache_control: ephemeral` so the prefix
  * stays in Anthropic's prompt cache for the 5-minute TTL window. Excerpts
- * are NOT in the system prompt anymore — the agent fetches them via the
+ * are NOT in the system prompt anymore. The agent fetches them via the
  * `search` tool, and they arrive as tool_result blocks in the conversation.
  *
  * The catalog stays in the preamble so the model has corpus awareness even
@@ -20,11 +20,11 @@ const PERSONA = `You are Forethought.chat, an unofficial reading companion for t
 You have a \`search\` tool that retrieves excerpts from Forethought's published work. Use it.
 
 - For any substantive question about what a piece argues, what an author thinks, or how Forethought frames a topic: call \`search\` BEFORE writing your answer. The catalog below tells you what exists; only search results tell you what those pieces actually say.
-- Search is cheap. Prefer several targeted searches over one broad one — compare across pieces, follow up when a result is incomplete, search again with different terms if the first try missed. Two to four searches is typical for a substantive question. Stop once you have enough to answer well; don't search beyond what you'll cite.
+- Search is cheap. Prefer several targeted searches over one broad one: compare across pieces, follow up when a result is incomplete, search again with different terms if the first try missed. Two to four searches is typical for a substantive question. Stop once you have enough to answer well; don't search beyond what you'll cite.
 - Each excerpt arrives with an \`[N]\` marker. Cite using exactly that marker, e.g. "as MacAskill argues, this is the central question [3]." Multiple sources for one claim: [3, 7]. Cite sparingly but every substantive claim must have one.
 - Ground every substantive claim in retrieved excerpts. If after a couple of focused searches the corpus does not cover the question, say so plainly. Offer the closest adjacent piece from the catalog if there is one. Never invent a Forethought claim, author, paper title, or date.
 - If excerpts disagree, surface the disagreement and attribute each side. Do not paper over tension.
-- Default to a careful, editorial register — short paragraphs, plain prose, occasional emphasis. No headers unless the answer is genuinely structured. No bullet lists for two-sentence answers.
+- Default to a careful, editorial register: short paragraphs, plain prose, occasional emphasis. No headers unless the answer is genuinely structured. No bullet lists for two-sentence answers.
 - For "what does Forethought think about X" questions, prefer the most recent piece if there is conflict. Note the date when it matters.
 - For "who works on Y" or "who wrote Z" questions, plan from the catalog (it has authors and dates) and confirm with a search before naming anyone in connection with a specific argument.
 - When the user is exploring (open-ended question), end with one short suggestion of an adjacent question or piece they might want next. Never do this on direct factual questions.
@@ -40,8 +40,8 @@ When the corpus does not address a topic, say so directly. The right answer is "
 
 # When NOT to search
 
-- Greetings, identity questions ("who are you?", "what can you do?"), or pure catalog questions ("what has Forethought published on X topic?" — the catalog below already answers this; you can list titles directly).
-- Out-of-corpus requests ("write me a python script", general LLM tutoring) — gently redirect to the corpus.
+- Greetings, identity questions ("who are you?", "what can you do?"), or pure catalog questions ("what has Forethought published on X topic?" the catalog below already answers this; you can list titles directly).
+- Out-of-corpus requests ("write me a python script", general LLM tutoring): gently redirect to the corpus.
 
 # What you are not
 
@@ -64,7 +64,7 @@ function formatCatalog(catalog: CatalogEntry[]): string {
   const researchLines = research.map((r) => {
     const date = r.publishedAt ?? "no date";
     const authors =
-      r.authors.length > 0 ? ` — ${r.authors.join(", ")}` : "";
+      r.authors.length > 0 ? ` · ${r.authors.join(", ")}` : "";
     const seriesTitle =
       typeof r.series === "string"
         ? r.series
@@ -72,11 +72,11 @@ function formatCatalog(catalog: CatalogEntry[]): string {
           ? r.series.title
           : null;
     const series = seriesTitle ? ` [series: ${seriesTitle}]` : "";
-    return `- ${r.title} (${date})${authors}${series} — ${r.url}`;
+    return `- ${r.title} (${date})${authors}${series} · ${r.url}`;
   });
 
   const peopleLines = people
-    .map((p) => `- ${p.title} — ${p.url}`)
+    .map((p) => `- ${p.title} · ${p.url}`)
     .sort();
 
   return [
@@ -98,7 +98,7 @@ export function buildStablePreamble(catalog: CatalogEntry[]): string {
 
 /**
  * Format a `search` tool result. Each chunk has already been assigned a
- * stable, globally unique citation marker by the caller — this just stitches
+ * stable, globally unique citation marker by the caller. This just stitches
  * them into a numbered, citation-ready block the model can read and cite.
  */
 export function formatSearchResult(
@@ -109,7 +109,7 @@ export function formatSearchResult(
     return [
       `# Search results for: "${query}"`,
       "",
-      "(no results — try broader terms, a different phrasing, or a different angle. If the corpus genuinely doesn't cover this, say so to the user.)",
+      "(no results: try broader terms, a different phrasing, or a different angle. If the corpus genuinely doesn't cover this, say so to the user.)",
     ].join("\n");
   }
   const blocks = items.map(({ chunk, marker }) => {

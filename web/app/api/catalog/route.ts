@@ -1,9 +1,9 @@
 /**
- * Catalog endpoint — feeds the welcome screen and the topic browser.
+ * Catalog endpoint. Feeds the welcome screen and the topic browser.
  *
  * Returns the prebuilt catalog plus a small set of derived stats (counts,
  * top-level topics) so the UI doesn't have to recompute them on every load.
- * Cached aggressively — the underlying file only changes on `pnpm ingest`.
+ * Cached aggressively; the underlying file only changes on `pnpm ingest`.
  */
 import { NextResponse } from "next/server";
 import { corpusStats, getCatalog } from "@/lib/search";

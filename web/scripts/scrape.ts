@@ -4,7 +4,7 @@
  * Forethought publishes via Next.js + Contentful. The reliable text source is
  * the embedded `__NEXT_DATA__` payload which holds the structured CMS records
  * (articles, people, pages). We pull those records directly and keep the
- * markdown bodies intact rather than scraping rendered HTML — this preserves
+ * markdown bodies intact rather than scraping rendered HTML, which preserves
  * footnote markers, headings, links, and code spans for downstream chunking.
  *
  *   pnpm scrape                    # incremental
@@ -230,7 +230,7 @@ type SeriesInfo = {
  *   { kind: "part" | "overview", seriesName, totalParts,
  *     partsNavigation: { currentIndex, previousArticle, nextArticle, overviewArticle },
  *     partsList: [{ slug, title, isCurrent }] }
- * — not the original Sanity-style `seriesContext.series.fields`. Read
+ * not the original Sanity-style `seriesContext.series.fields`. Read
  * directly from the partsList so a series carries its full ordering.
  */
 function extractSeries(seriesContext: unknown): SeriesInfo | null {
@@ -427,7 +427,7 @@ function buildPersonRecord(
     type: typeof f.teamCategory === "string" ? f.teamCategory : null,
     title: name || meta.ogTitle || meta.docTitle,
     description: role
-      ? `${role} — ${bio.slice(0, 240)}`.trim()
+      ? `${role} · ${bio.slice(0, 240)}`.trim()
       : bio.slice(0, 240),
     authors: name
       ? [

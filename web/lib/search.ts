@@ -14,6 +14,7 @@ export const search = searcher.search;
 export const getCatalog = searcher.getCatalog;
 export const corpusStats = searcher.corpusStats;
 export const getChunk = searcher.getChunk;
+export const chunksForUrl = searcher.chunksForUrl;
 
 export type {
   CatalogEntry,

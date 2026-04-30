@@ -68,6 +68,12 @@ export type Searcher = {
     builtAt: string;
   }>;
   getChunk(id: string): Promise<Chunk | null>;
+  /**
+   * Return every chunk belonging to a given canonical article URL,
+   * in document order. Used to seed the agent with context when the
+   * user @-mentions an article.
+   */
+  chunksForUrl(url: string): Promise<Chunk[]>;
 };
 
 export function createSearcher(opts: SearcherOptions): Searcher {
@@ -221,7 +227,12 @@ export function createSearcher(opts: SearcherOptions): Searcher {
     return out;
   }
 
-  return { search, getCatalog, corpusStats, getChunk };
+  async function chunksForUrl(url: string): Promise<Chunk[]> {
+    const { payload } = await load();
+    return payload.chunks.filter((c) => c.url === url);
+  }
+
+  return { search, getCatalog, corpusStats, getChunk, chunksForUrl };
 }
 
 function tokenize(s: string): string[] {
