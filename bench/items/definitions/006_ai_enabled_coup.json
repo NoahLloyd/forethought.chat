@@ -1,0 +1,20 @@
+{
+  "id": "definitions_006_ai_enabled_coup",
+  "track": "definitions",
+  "version": 1,
+  "tier": "smoke",
+  "question": "How does Davidson, Finnveden, and Hadshar define an 'AI-enabled coup', and what makes it categorically different from historical coups?",
+  "claim_type": "verbal",
+  "accepted_phrasings": [
+    "A coup that could be staged by a very small group or single person, enabled by AI systems with singular loyalty, secret loyalty, or exclusive access to superhuman capabilities",
+    "A coup made possible because AI systems can replace human soldiers and remove the requirement to gain human supporters",
+    "A coup whose three novel dynamics are singular loyalty of AI to the coup-makers, secret loyalty embedded by AI project leaders, and exclusive access to superhuman AI capabilities"
+  ],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/ai-enabled-coups-how-a-small-group-could-use-ai-to-seize-power",
+    "title": "AI-Enabled Coups: How a Small Group Could Use AI to Seize Power",
+    "authors": ["Tom Davidson", "Lukas Finnveden", "Rose Hadshar"]
+  },
+  "source_passage": "An AI-enabled coup could be staged by a very small group, or just a single person, and could occur even in established democracies. Sufficiently advanced AI will introduce three novel dynamics that significantly increase coup risk. Firstly, military and government leaders could fully replace human personnel with AI systems that are *singularly loyal* to them. Secondly, leaders of AI projects could deliberately build AI systems that are *secretly loyal* to them. Thirdly, senior officials within AI projects or the government could gain *exclusive access* to superhuman capabilities.",
+  "metadata": {"topics": ["coups", "ai-power-concentration"], "difficulty": "medium"}
+}

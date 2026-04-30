@@ -1,0 +1,20 @@
+{
+  "id": "definitions_005_lock_in_mechanisms",
+  "track": "definitions",
+  "version": 1,
+  "tier": "smoke",
+  "question": "In MacAskill and Assadi's 'Beyond Existential Risk', what are the most plausible mechanisms by which AGI could enable lock-in?",
+  "claim_type": "verbal",
+  "accepted_phrasings": [
+    "AGI-enforced institutions (perpetually binding laws or constitutions) and defense-dominant allocation of extrasolar resources",
+    "Two mechanisms: AGI maintaining/reproducing governance institutions indefinitely, and the lock-in of space resource allocation due to defense-dominance of star systems",
+    "AGI enables perpetually binding institutions; and post-AGI space settlement gets locked in because star systems are defense-dominant"
+  ],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/beyond-existential-risk",
+    "title": "Beyond Existential Risk",
+    "authors": ["William MacAskill", "Guive Assadi"]
+  },
+  "source_passage": "In our view, the two most plausible mechanisms for such lock-in are as follows: First, AGI could enable the creation and enforcement of perpetually binding institutions, laws, or constitutions. ... Second, the allocation of extrasolar resources. Once widespread space settlement becomes possible - which might come soon after the development of AGI - space could be divided among different groups. It seems plausible that star systems at technological maturity are defense-dominant.",
+  "metadata": {"topics": ["lock-in", "long-term-future"], "difficulty": "hard"}
+}

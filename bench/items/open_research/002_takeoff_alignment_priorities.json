@@ -1,0 +1,13 @@
+{
+  "id": "open_research_002_takeoff_alignment",
+  "track": "open_research",
+  "version": 1,
+  "tier": "smoke",
+  "question": "Given Davidson and Houlden's estimates that a software intelligence explosion may compress 3+ years of AI progress into <1 year (~60% probability), what does this imply for AI alignment research priorities today? Specifically, which alignment problems become first-order under fast takeoff and which become moot? Argue with reference to specific Forethought claims.",
+  "metadata": {
+    "topics": ["takeoff", "alignment"],
+    "difficulty": "hard",
+    "expected_to_cite": ["how-quick-and-big-would-a-software-intelligence-explosion-be", "the-importance-of-ai-character"],
+    "note": "Open-domain extension - the Forethought corpus has the timeline + character papers; this question demands integrating them with general alignment research priorities."
+  }
+}

@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
+  // The agent package ships TypeScript directly; tell Next to compile it.
+  transpilePackages: ["@forethought/agent"],
+
   experimental: {
     serverActions: { bodySizeLimit: "2mb" },
   },

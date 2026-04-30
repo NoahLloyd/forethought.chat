@@ -1,0 +1,21 @@
+{
+  "id": "definitions_001_viatopia",
+  "track": "definitions",
+  "version": 1,
+  "tier": "smoke",
+  "question": "In Forethought's framework, what is 'viatopia'?",
+  "claim_type": "verbal",
+  "accepted_phrasings": [
+    "an intermediate state of society that is on track for a near-best future",
+    "a waystation rather than a final destination, positioned to reach excellent futures",
+    "a society equipped with resources, wisdom, and flexibility to steer itself toward a future as good as it could be",
+    "an intermediate state of society on track for a near-best future"
+  ],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/viatopia",
+    "title": "Viatopia",
+    "authors": ["William MacAskill"]
+  },
+  "source_passage": "Viatopia: an intermediate state of society that is on track for a near-best future, whatever that might look like.",
+  "metadata": {"topics": ["viatopia", "long-term-future"], "difficulty": "easy"}
+}

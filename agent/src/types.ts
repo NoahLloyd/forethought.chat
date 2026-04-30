@@ -89,7 +89,7 @@ export type ChatRequest = {
 };
 
 /**
- * Server-Sent-Events the API streams back. The agent calls the search tool
+ * Events the agent yields. Web translates these 1:1 to SSE wire events.. The agent calls the search tool
  * zero or more times before answering, so events arrive interleaved:
  *   - `tool_call` fires when the agent issues a search (one per call).
  *   - `sources` fires after each search that finds new chunks; payload is
@@ -98,7 +98,7 @@ export type ChatRequest = {
  *   - `done` fires once at the end with stop reason and token usage.
  *   - `error` may replace any of the above on failure.
  */
-export type StreamEvent =
+export type AgentEvent =
   | { type: "tool_call"; name: "search"; query: string }
   | { type: "sources"; sources: SourceCard[] }
   | { type: "text"; delta: string }

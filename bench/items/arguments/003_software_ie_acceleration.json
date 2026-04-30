@@ -1,0 +1,22 @@
+{
+  "id": "arguments_003_software_ie_acceleration",
+  "track": "arguments",
+  "version": 1,
+  "tier": "smoke",
+  "question": "Reconstruct the 'Three Types of Intelligence Explosion' argument for why a software intelligence explosion is plausible to accelerate. State the conditions under which a feedback loop produces accelerating progress and the empirical evidence supporting this for AI software.",
+  "required_elements": [
+    "A feedback loop accelerates when doubling inputs yields more than doubling of outputs",
+    "A software intelligence explosion involves AI automating improvements to AI software itself",
+    "The software feedback loop has the shortest time lags compared to chip technology and chip production",
+    "Empirical evidence on efficiency gains suggests doubling research inputs yields more than doubling of compute efficiency",
+    "If the multiplier exceeds 1, subsequent doublings happen faster, producing acceleration",
+    "Therefore the software feedback loop alone is plausibly sufficient (~50%) to sustain accelerating progress"
+  ],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/three-types-of-intelligence-explosion",
+    "title": "Three Types of Intelligence Explosion",
+    "authors": ["Tom Davidson", "Rose Hadshar", "William MacAskill"]
+  },
+  "source_passage": "Whether a feedback loop leads to accelerating progress depends on how much doubling inputs to the feedback loop doubles output. If output more than doubles when input doubles, there is accelerating progress (because the next doubling of inputs can draw on more than twice as many outputs, and so will happen faster than the last doubling). A software IE might well accelerate over time, because the software feedback loop by itself might well be enough to sustain accelerating progress. Efficiency gains in various domains of AI suggest that doubling research inputs leads to more than a doubling of compute efficiency.",
+  "metadata": {"topics": ["intelligence-explosion", "feedback-loops"], "difficulty": "hard"}
+}

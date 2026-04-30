@@ -1,0 +1,32 @@
+{
+  "id": "synthesis_003_coups_outgrowth",
+  "track": "synthesis",
+  "version": 1,
+  "tier": "smoke",
+  "question": "Davidson, Finnveden, and Hadshar describe AI-enabled coups (small groups seizing power within a country); Davidson separately argues a single country could outgrow the rest of the world via superexponential growth. How do these two power-concentration mechanisms interact? Could a successful coup in a leading AI country guarantee global outgrowth, or do the mechanisms operate at independent levels?",
+  "expected_citations": [
+    {
+      "url": "https://www.forethought.org/research/ai-enabled-coups-how-a-small-group-could-use-ai-to-seize-power",
+      "title": "AI-Enabled Coups: How a Small Group Could Use AI to Seize Power",
+      "authors": ["Tom Davidson", "Lukas Finnveden", "Rose Hadshar"]
+    },
+    {
+      "url": "https://www.forethought.org/research/could-one-country-outgrow-the-rest-of-the-world",
+      "title": "Could one country outgrow the rest of the world?",
+      "authors": ["Tom Davidson"]
+    }
+  ],
+  "required_elements": [
+    "AI-enabled coups describe intra-country power seizure by small groups using singularly-loyal AI",
+    "Outgrowth describes inter-country economic divergence under superexponential growth",
+    "The mechanisms are at different scales (intra-state political vs. inter-state economic)",
+    "Outgrowth requires sustained coordinated effort (e.g., chip export controls) - not automatic from coup success",
+    "Combined risk: a coup in a leading AI country could remove constraints on outgrowth-favouring policy",
+    "Synthesis: the two papers describe different but compatible pathways to extreme power concentration"
+  ],
+  "metadata": {
+    "relationship": "complements",
+    "topics": ["coups", "geopolitics", "outgrowth"],
+    "difficulty": "hard"
+  }
+}

@@ -1,0 +1,25 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.venv/
+venv/
+
+.env
+.env.local
+.cache/
+logs/
+
+# Local copy of the corpus index (built from forethoughtchat data/content/).
+corpus_cache/
+
+# Inspect AI logs
+inspect_logs/
+*.eval
+
+# Editor / OS
+.DS_Store
+.idea/
+.vscode/

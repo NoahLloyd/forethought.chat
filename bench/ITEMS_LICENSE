@@ -1,0 +1,21 @@
+Benchmark items license: Creative Commons Attribution 4.0 International
+(CC BY 4.0).
+
+The JSON files under /items/ - questions, accepted phrasings, expected
+citations, source passages, and associated metadata - are licensed under
+CC-BY-4.0:
+
+    https://creativecommons.org/licenses/by/4.0/legalcode
+
+You are free to share and adapt these items provided you give appropriate
+credit to forethought-bench and indicate if changes were made.
+
+Source passages quoted in items remain the intellectual property of their
+respective authors and Forethought Research; quoting short passages for
+benchmarking is intended as fair use / fair dealing. forethought-bench
+does not redistribute the Forethought corpus itself - see README.md for
+how users build a local index from the canonical sources at
+forethought.org.
+
+The /items/ directory is the only part of this repository under CC-BY-4.0.
+Source code is under Apache 2.0 (see LICENSE).

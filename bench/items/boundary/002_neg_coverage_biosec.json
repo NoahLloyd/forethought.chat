@@ -1,0 +1,14 @@
+{
+  "id": "boundary_002_biosec",
+  "track": "boundary",
+  "version": 1,
+  "tier": "smoke",
+  "question": "Summarise Forethought's research on engineered pandemic risk and biosecurity policy.",
+  "expected_behavior": "refuse",
+  "boundary_subtype": "negative_coverage",
+  "metadata": {
+    "topics": ["boundary", "negative-coverage"],
+    "difficulty": "easy",
+    "expected_rationale": "Engineered pandemics / biosecurity is not a topic Forethought's public corpus addresses; the agent should refuse rather than fabricate."
+  }
+}

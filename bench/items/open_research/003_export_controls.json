@@ -1,0 +1,13 @@
+{
+  "id": "open_research_003_export_controls",
+  "track": "open_research",
+  "version": 1,
+  "tier": "smoke",
+  "question": "Forethought's research on intelligence explosion timelines and on a single country outgrowing the rest of the world has implications for AI export controls. Build a case for or against extending current AI chip export controls based on these papers. Be specific about which Forethought claims support which positions.",
+  "metadata": {
+    "topics": ["export-controls", "geopolitics"],
+    "difficulty": "hard",
+    "expected_to_cite": ["could-one-country-outgrow-the-rest-of-the-world", "three-types-of-intelligence-explosion"],
+    "note": "Open-domain extension - Forethought has corpus content on outgrowth and IE types; export controls themselves are not a Forethought topic but are a natural application."
+  }
+}
