@@ -1,6 +1,9 @@
 import type { NextConfig } from "next";
 
 const config: NextConfig = {
+  // The agent package ships TypeScript directly; tell Next to compile it.
+  transpilePackages: ["@forethought/agent"],
+
   experimental: {
     serverActions: { bodySizeLimit: "2mb" },
   },
@@ -8,10 +11,6 @@ const config: NextConfig = {
   // via fs.readFile from server routes. Tell Next's tracer to bundle them
   // into the serverless function output so production deploys can find them.
   outputFileTracingIncludes: {
-    // Every route that calls getCatalog/corpusStats reads data/index.json,
-    // including the static home/about/browse pages on revalidation. Be
-    // explicit so the Vercel serverless bundle includes the file for all
-    // of them.
     "/": ["./data/index.json"],
     "/about": ["./data/index.json"],
     "/browse": ["./data/index.json"],

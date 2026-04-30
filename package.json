@@ -1,0 +1,16 @@
+{
+  "name": "forethoughtchat-monorepo",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Monorepo for forethought.chat (web/), the chat agent (agent/), and the eval suite (bench/).",
+  "scripts": {
+    "dev": "pnpm --filter @forethought/web dev",
+    "build": "pnpm --filter @forethought/web build",
+    "ingest": "pnpm --filter @forethought/web ingest",
+    "lint": "pnpm --filter @forethought/web lint"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "packageManager": "pnpm@10.33.2"
+}
