@@ -190,3 +190,23 @@ def test_extract_citations_handles_compound_markers() -> None:
     cits = extract_citations_from_markers(prose, sources)
     assert len(cits) == 2
     assert {c.url for c in cits} == {"u1", "u6"}
+
+
+def test_tier_filter_smoke_only_returns_smoke_items() -> None:
+    from forethought_bench.schema import TrackName
+    from forethought_bench.tasks._common import load_items_for_track
+    smoke = load_items_for_track(TrackName.CLAIM_RECALL, tier="smoke")
+    extended = load_items_for_track(TrackName.CLAIM_RECALL, tier="extended")
+    all_ = load_items_for_track(TrackName.CLAIM_RECALL, tier="all")
+    assert len(smoke) == 5
+    assert len(extended) == 8
+    assert len(all_) == 8
+    # Smoke set: items 001, 004, 006, 007, 008
+    smoke_ids = {i.id for i in smoke}
+    assert smoke_ids == {
+        "claim_recall_001",
+        "claim_recall_004",
+        "claim_recall_006",
+        "claim_recall_007",
+        "claim_recall_008",
+    }

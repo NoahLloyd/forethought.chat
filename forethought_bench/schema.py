@@ -83,6 +83,11 @@ class Item(BaseModel):
     # Track 3 (argument reconstruction) and Track 4 (synthesis) fields.
     required_elements: list[str] = Field(default_factory=list)
 
+    # Tier controls whether an item runs in the default fast iteration loop.
+    # "smoke"    : included in default runs (small, failure-mode-diverse subset)
+    # "extended" : excluded by default; included only when tier="extended" or "all"
+    tier: Literal["smoke", "extended"] = "smoke"
+
     # Held-out partition. ~20% of items per track should be held_out=True.
     held_out: bool = False
     # Canary token unique to this item; embedded in the question text so

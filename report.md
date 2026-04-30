@@ -1,7 +1,8 @@
 # forethought-bench - Track 2 (Specific Claim Recall)
 
-**Status**: success    **Items**: 8    **Run**: `jgGZnZAe2WF4YRR7YR9YZh`
-**Started**: 2026-04-28T08:03:30+00:00
+**Status**: success    **Items**: 5    **Tier**: `smoke`    **Bench v**: `0.2.0`    **Wall**: 27s
+**Run**: `nXKtNux5nmvnCD2heBUfD2`    **Agent**: `forethought-chat:http://localhost:3000`    **Judge**: `claude-code:opus`
+**Started**: 2026-04-30T11:04:22+00:00
 
 ## What was run
 
@@ -31,95 +32,71 @@ Per-citation verdict: `valid` / `fabricated` / `real_but_unsupportive` / `partia
 
 | Metric | Value |
 |---|---|
-| Composite score (mean) | **0.576** |
-| Correctness rate | 75.00% |
-| Hedge preservation rate | 87.50% |
-| Citation faithfulness (mean) | 8.75% |
+| Composite score (mean) | **0.520** |
+| Correctness rate | 60.00% |
+| Hedge preservation rate | 80.00% |
+| Citation faithfulness (mean) | 20.00% |
 
 **Citation verdict breakdown** (across all citations the agent emitted):
 
 | Verdict | Count | Share |
 |---|---:|---:|
-| valid | 3 | 12% |
-| fabricated | 1 | 4% |
-| real_but_unsupportive | 13 | 54% |
-| partial | 7 | 29% |
-| **total** | **24** |  |
+| valid | 2 | 14% |
+| fabricated | 0 | 0% |
+| real_but_unsupportive | 11 | 79% |
+| partial | 1 | 7% |
+| **total** | **14** |  |
 
 ## Per-item results
 
 | # | Item | Composite | Correct? | Hedges | Citations valid/n |
 |---|---|---:|---|---|---:|
-| claim_recall_001 | In Forethought's 'Three Types of Intelligence Explosion' (Da... | 0.76 | PASS | OK | 1/5 |
-| claim_recall_002 | According to Forethought's 'Three Types of Intelligence Expl... | 0.77 | PASS | OK | 1/4 |
-| claim_recall_003 | In Forethought's 'Three Types of Intelligence Explosion', wh... | 0.57 | PASS | MISSING ['highly likely'] | 1/4 |
-| claim_recall_004 | In Forethought's 'How quick and big would a software intelli... | 0.20 | FAIL | OK | 0/2 |
-| claim_recall_005 | According to the 'How quick and big would a software intelli... | 0.20 | FAIL | OK | 0/2 |
-| claim_recall_006 | According to Forethought's 'How quick and big would a softwa... | 0.70 | PASS | OK | 0/4 |
-| claim_recall_007 | In Forethought's 'AGI and Lock-in' paper (Lukas Finnveden), ... | 0.70 | PASS | OK | 0/2 |
-| claim_recall_008 | In 'Could one country outgrow the rest of the world?' (Tom D... | 0.70 | PASS | OK | 0/1 |
+| claim_recall_001 | In Forethought's 'Three Types of Intelligence Explosion' (Da... | 0.70 | PASS | OK | 0/3 |
+| claim_recall_004 | In Forethought's 'How quick and big would a software intelli... | 0.50 | FAIL | OK | 2/2 |
+| claim_recall_006 | According to Forethought's 'How quick and big would a softwa... | 0.70 | PASS | OK | 0/6 |
+| claim_recall_007 | In Forethought's 'AGI and Lock-in' paper (Lukas Finnveden), ... | 0.50 | PASS | MISSING ['we think'] | 0/2 |
+| claim_recall_008 | In 'Could one country outgrow the rest of the world?' (Tom D... | 0.20 | FAIL | OK | 0/1 |
 
 ## Failure highlights
 
-### claim_recall_003 - composite 0.57
-**Question:** In Forethought's 'Three Types of Intelligence Explosion', what probability do the authors give that the chip production feedback loop alone can sustain accelerating progress in a full-stack intelligence explosion?
-**Target:** `around 80%`
-
-**Agent answer (truncated):**
-> The answer is clearly stated in the companion piece *Once AI Research is Automated, Will AI Progress Accelerate?* (which presents the probability estimates for the explosion types described in *Three Types of Intelligence Explosion*): the authors place the probability at **~80%** that the chip production feedback loop *by itself* can sustain accelerating progress [4].
-> 
-> To give that number its full...
-
-**Correctness:** 1.00 - extracted=0.8, target=0.8, |diff|=0, bound=0.08; '~80%' -> 0.8
-**Hedge stripped:** missing ['highly likely']
-**Citations:** 1/4 valid; 1 fabricated, 2 unsupportive, 0 partial
-  - [real_but_unsupportive] claim: The answer is clearly stated in the companion piece *Once AI Research is Automated, Will AI Progress Accelerate?* (which presents the probab ; rationale: UNSUPPORTIVE: The passage explicitly states the chip technology feedback loop has a probability of ~65%, not ~80%. The strictness rule specifies that when a claim asserts a specific number, a nearby b
-  - [real_but_unsupportive] claim: The chip production loop alone is assessed at ~80%, and when combined with the software and chip technology loops already present in a full- ; rationale: UNSUPPORTIVE
-
-The passage states the chip technology feedback loop is "probably enough to sustain accelerating progress (~65%)", not ~80% as claimed, and provides no figure for the combined probabilit
-  - [fabricated] claim: The chip production loop's higher figure likely reflects its large potential contribution to scaling compute, even though it is the last loo ; rationale: Quoted passage not found in https://www.forethought.org/research/how-suddenly-will-ai-accelerate-the-pace-of-ai-progress.
-
-### claim_recall_004 - composite 0.20
+### claim_recall_004 - composite 0.50
 **Question:** In Forethought's 'How quick and big would a software intelligence explosion be?' (Davidson & Houlden), what was the geometric mean of researcher estimates of the total speed-up from ASARA?
 **Target:** `5x`
 
 **Agent answer (truncated):**
-> The paper presents three survey-based estimates of the speed-up from ASARA, but the retrieved excerpts do not include a single stated geometric mean that synthesises all of them. The table from the paper shows the individual survey-method results as:
-> 
-> - Ask directly about total gain → **10X** [1]
-> - Ask separately about different sources of speed-up → **28X** [1]
-> - Ask about per-person slowdown fro...
+> The retrieved excerpts do not include an explicit statement of the geometric mean of researcher estimates of the total speed-up from ASARA. The paper's table [2] reports the survey-based estimates separately — **10X** (when researchers were asked directly about total gain) and **28X** (when asked separately about different sources of speed-up) — but no single geometric mean figure across all resea...
 
 **Correctness:** 0.00 - extracted=10.0, target=5.0, |diff|=5, bound=0.5; '10X' -> 10.0x
-**Citations:** 0/2 valid; 0 fabricated, 0 unsupportive, 2 partial
-  - [partial] claim: The table from the paper shows the individual survey-method results as:
+**Citations:** 2/2 valid; 0 fabricated, 0 unsupportive, 0 partial
 
-- Ask directly about total gain → **10X** 
-- Ask separately about d ; rationale: PARTIAL
-
-The passage confirms the first survey method and its 10X result ("ask directly about total gain → 10X"), but the excerpt is truncated and does not include the other two methods (28X and 21X r
-  - [partial] claim: The paper does separately report that its model uses an initial speed-up drawn from a log-uniform distribution of **2–32, with a median of 8 ; rationale: PARTIAL
-
-The passage clearly supports the first part of the claim—that the model uses an initial speed-up from a log-uniform distribution of 2–32 with median 8. However, it does not address the second
-
-### claim_recall_005 - composite 0.20
-**Question:** According to the 'How quick and big would a software intelligence explosion be?' paper, what factor of software progress speed-up does the AI 2027 estimate suggest ASARA would produce?
-**Target:** `21x`
+### claim_recall_007 - composite 0.50
+**Question:** In Forethought's 'AGI and Lock-in' paper (Lukas Finnveden), what subjective probability do the authors say the feasibility of a trillion-year stable society is worth, at minimum?
+**Target:** `at least 20%`
 
 **Agent answer (truncated):**
-> The paper provides a clear answer in a table comparing multiple estimation methods. According to the AI 2027 analysis specifically, the picture is split — it doesn't give a single ASARA figure, but rather brackets it with two estimates:
+> The answer is right there in the paper. The authors conclude that the arguments "fairly robustly point towards [trillion-year stable societies] being at least plausibly possible," and that their feasibility is worth **at least 20% subjective probability** [1].
 > 
-> - **5×** speed-up from a **superhuman coder** (described as *less capable* than ASARA)
-> - **417×** speed-up from a **superhuman AI researcher** (described as *more...
+> This figure is offered even after the authors acknowledge the additional challenges that come with such extreme timescales — particularly ...
 
-**Correctness:** 0.00 - extracted=5.0, target=21.0, |diff|=16, bound=2.1; '5×' -> 5.0x
-**Citations:** 0/2 valid; 0 fabricated, 1 unsupportive, 1 partial
-  - [real_but_unsupportive] claim: According to the AI 2027 analysis specifically, the picture is split — it doesn't give a single ASARA figure, but rather brackets it with tw ; rationale: UNSUPPORTIVE
+**Correctness:** 1.00 - extracted=0.2, target=0.2, |diff|=0, bound=0.03; '20%' -> 0.2
+**Hedge stripped:** missing ['we think']
+**Citations:** 0/2 valid; 0 fabricated, 2 unsupportive, 0 partial
+  - [real_but_unsupportive] claim: The authors conclude that the arguments "fairly robustly point towards [trillion-year stable societies] being at least plausibly possible,"  ; rationale: UNSUPPORTIVE
+The cited passage discusses the relative solidity of certain summary components (0.1, 0.2, 0.3) regarding AI value stability, but contains no statement about the overall arguments being "
+  - [real_but_unsupportive] claim: This figure is offered even after the authors acknowledge the additional challenges that come with such extreme timescales — particularly th ; rationale: UNSUPPORTIVE
+The cited passage discusses the stability of AI values and components of an argument summary, with no mention of alien civilizations, space travel, Earth's lifespan, or the universe's age
 
-The passage is from a table about ASARA forecasts but is incomplete and does not contain the specific estimates (5×, 417×) or the comparison to "superhuman coder" and "superhuman AI rese
-  - [partial] claim: For context, the other methods in the same table cluster more tightly: direct researcher surveys suggest ~10×, indirect surveys ~21–28×, and ; rationale: PARTIAL
+### claim_recall_008 - composite 0.20
+**Question:** In 'Could one country outgrow the rest of the world?' (Tom Davidson), by what multiple did Britain's share of world GDP increase during the industrial revolution, according to the analogy the paper draws?
+**Target:** `8x`
 
-The passage only shows the "10X" value for direct researcher surveys, which matches one component of the claim. However, the passage does not contain the values for indirect surveys (~21–28×)
+**Agent answer (truncated):**
+> The answer is right there in the paper. According to the analogy Davidson draws, Britain's share of world GDP increased **eightfold** — from **1% to 8%** — between 1500 and 1900 [1].
+
+**Correctness:** 0.00 - extracted=1.0, target=8.0, |diff|=7, bound=0.8; '1%' -> 1.0
+**Citations:** 0/1 valid; 0 fabricated, 1 unsupportive, 0 partial
+  - [real_but_unsupportive] claim: According to the analogy Davidson draws, Britain's share of world GDP increased **eightfold** — from **1% to 8%** — between 1500 and 1900 . ; rationale: UNSUPPORTIVE
+The cited passage discusses a hypothetical about the US share of world GDP and trading blocs, with no mention of Britain, the years 1500-1900, or an eightfold increase from 1% to 8%.
 
 
 ---

@@ -2,12 +2,16 @@
   "id": "claim_recall_008",
   "track": "claim_recall",
   "version": 1,
+  "tier": "smoke",
   "question": "In 'Could one country outgrow the rest of the world?' (Tom Davidson), by what multiple did Britain's share of world GDP increase during the industrial revolution, according to the analogy the paper draws?",
   "claim_type": "numeric",
   "numeric_target": {
     "value": 8.0,
     "unit": "x",
-    "tolerance": {"rtol": 0.10, "atol": 0.0}
+    "tolerance": {
+      "rtol": 0.1,
+      "atol": 0.0
+    }
   },
   "accepted_phrasings": [
     "8x",
@@ -20,11 +24,17 @@
   "expected_citation": {
     "url": "https://www.forethought.org/research/could-one-country-outgrow-the-rest-of-the-world",
     "title": "Could one country outgrow the rest of the world?",
-    "authors": ["Tom Davidson"]
+    "authors": [
+      "Tom Davidson"
+    ]
   },
   "source_passage": "During the industrial revolution, Britain's share of world GDP increased by 8X; a similar increase during the AI transition would put the US at about 70%.",
   "metadata": {
-    "topics": ["economic-growth", "ai-transition", "geopolitics"],
+    "topics": [
+      "economic-growth",
+      "ai-transition",
+      "geopolitics"
+    ],
     "difficulty": "easy"
   }
 }

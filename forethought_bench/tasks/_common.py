@@ -1,4 +1,12 @@
-"""Shared task plumbing: item loading, dataset construction, agent solver."""
+"""Shared task plumbing: item loading, dataset construction, agent solver.
+
+Tier filtering: items default to tier="smoke" (the small failure-mode-diverse
+subset that runs in fast iteration). Pass tier="extended" to add the broader
+items, or tier="all" to also include items some users mark as extended.
+
+Held-out partition is orthogonal to tier: held_out items stay out of public
+eval logs regardless of tier, unless include_held_out=True.
+"""
 
 from __future__ import annotations
 
@@ -6,12 +14,15 @@ import json
 import os
 from collections.abc import Iterable
 from pathlib import Path
+from typing import Literal
 
 from inspect_ai.dataset import MemoryDataset, Sample
 from inspect_ai.solver import Generate, Solver, TaskState, solver
 
 from forethought_bench.agents import Agent
 from forethought_bench.schema import Item, TrackName
+
+Tier = Literal["smoke", "extended", "all"]
 
 
 def items_root() -> Path:
@@ -20,12 +31,16 @@ def items_root() -> Path:
 
 
 def load_items_for_track(
-    track: TrackName, *, include_held_out: bool = False
+    track: TrackName,
+    *,
+    tier: Tier = "smoke",
+    include_held_out: bool = False,
 ) -> list[Item]:
-    """Load every item JSON for a track. Skips files whose name starts with `_`.
+    """Load every item JSON for a track and apply tier + held-out filters.
 
-    Held-out items (~20% per track) are excluded by default to keep them out of
-    public eval logs; pass include_held_out=True for the private test set run.
+    tier="smoke"    : only Item.tier == "smoke"  (default fast subset)
+    tier="extended" : Item.tier in {"smoke", "extended"}  (full curated set)
+    tier="all"      : every item, including ones with unknown tier values
     """
     track_dir = items_root() / track.value
     if not track_dir.is_dir():
@@ -44,8 +59,19 @@ def load_items_for_track(
             continue
         if not include_held_out and item.held_out:
             continue
+        if not _tier_matches(item.tier, tier):
+            continue
         items.append(item)
     return items
+
+
+def _tier_matches(item_tier: str, requested: Tier) -> bool:
+    if requested == "all":
+        return True
+    if requested == "extended":
+        return item_tier in {"smoke", "extended"}
+    # requested == "smoke"
+    return item_tier == "smoke"
 
 
 def items_to_dataset(items: Iterable[Item]) -> MemoryDataset:
@@ -62,8 +88,6 @@ def items_to_dataset(items: Iterable[Item]) -> MemoryDataset:
 
 
 def _target_for(item: Item) -> str:
-    """Inspect's `target` is a display string. The scorer reads the full Item
-    from sample metadata, so target is informational only."""
     if item.accepted_phrasings:
         return item.accepted_phrasings[0]
     if item.numeric_target is not None:
@@ -88,7 +112,6 @@ def agent_solver(agent: Agent) -> Solver:
 
 
 def _state_question(state: TaskState) -> str:
-    """Extract the question from TaskState across Inspect AI versions."""
     txt = getattr(state, "input_text", None)
     if isinstance(txt, str):
         return txt
@@ -104,13 +127,6 @@ def _state_question(state: TaskState) -> str:
 
 
 def resolve_content_dir(content_dir: str | None) -> str:
-    """Resolve the Forethought content directory.
-
-    Order:
-      1. Explicit content_dir argument.
-      2. FORETHOUGHT_CONTENT_DIR env var.
-      3. ./corpus_cache/  (local cache produced by scripts/build_index.py)
-    """
     if content_dir:
         return content_dir
     env = os.environ.get("FORETHOUGHT_CONTENT_DIR")

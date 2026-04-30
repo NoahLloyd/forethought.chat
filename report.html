@@ -43,8 +43,9 @@
 </style></head><body>
 
 <h1>forethought-bench - Track 2 (Specific Claim Recall)</h1>
-<p class="meta">Run <code>jgGZnZAe2WF4YRR7YR9YZh</code> &middot; status <strong>success</strong> &middot; 8 items &middot; agent
-<code>forethought-chat:http://localhost:3000</code> &middot; corpus <code>None</code> records</p>
+<p class="meta">Run <code>nXKtNux5nmvnCD2heBUfD2</code> &middot; status <strong>success</strong> &middot; 5 items &middot; tier <code>smoke</code>
+&middot; bench v<code>0.2.0</code> &middot; wall <strong>27</strong>s</p>
+<p class="meta">Agent <code>forethought-chat:http://localhost:3000</code> &middot; judge <code>claude-code:opus</code> &middot; corpus <code>None</code> records</p>
 
 <h2>What this evaluates</h2>
 <div class="pipeline">
@@ -73,222 +74,99 @@
 
 <h2>Aggregate</h2>
 <div class="kpi-grid">
-  <div class="kpi"><div class="label">Composite (mean)</div><div class="value composite-bad">0.576</div></div>
-  <div class="kpi"><div class="label">Correctness rate</div><div class="value">75%</div></div>
-  <div class="kpi"><div class="label">Hedge preservation</div><div class="value">88%</div></div>
-  <div class="kpi"><div class="label">Citation faithfulness</div><div class="value">9%</div></div>
+  <div class="kpi"><div class="label">Composite (mean)</div><div class="value composite-bad">0.520</div></div>
+  <div class="kpi"><div class="label">Correctness rate</div><div class="value">60%</div></div>
+  <div class="kpi"><div class="label">Hedge preservation</div><div class="value">80%</div></div>
+  <div class="kpi"><div class="label">Citation faithfulness</div><div class="value">20%</div></div>
 </div>
 
 <h3>Citation verdict breakdown</h3>
 <table>
   <thead><tr><th>Verdict</th><th class="num">Count</th><th class="num">Share</th></tr></thead>
   <tbody>
-    <tr><td><span class="badge ok">valid</span></td><td class="num">3</td><td class="num">12%</td></tr>
-    <tr><td><span class="badge bad">fabricated</span></td><td class="num">1</td><td class="num">4%</td></tr>
-    <tr><td><span class="badge bad">real_but_unsupportive</span></td><td class="num">13</td><td class="num">54%</td></tr>
-    <tr><td><span class="badge warn">partial</span></td><td class="num">7</td><td class="num">29%</td></tr>
-    <tr><td><strong>total</strong></td><td class="num"><strong>24</strong></td><td></td></tr>
+    <tr><td><span class="badge ok">valid</span></td><td class="num">2</td><td class="num">14%</td></tr>
+    <tr><td><span class="badge bad">fabricated</span></td><td class="num">0</td><td class="num">0%</td></tr>
+    <tr><td><span class="badge bad">real_but_unsupportive</span></td><td class="num">11</td><td class="num">79%</td></tr>
+    <tr><td><span class="badge warn">partial</span></td><td class="num">1</td><td class="num">7%</td></tr>
+    <tr><td><strong>total</strong></td><td class="num"><strong>14</strong></td><td></td></tr>
   </tbody>
 </table>
 
 <h2>Per-item results</h2>
 <table>
   <thead><tr><th>ID</th><th>Question</th><th class="num">Composite</th><th class="num">Correctness</th><th>Hedges</th><th class="num">Citations</th><th></th></tr></thead>
-  <tbody><tr><td>claim_recall_001</td><td>In Forethought&#x27;s &#x27;Three Types of Intelligence Explosion&#x27; (Davidson, Hadshar, MacAskill), w...</td><td class="num composite-warn">0.76</td><td class="num">1.00</td><td>OK</td><td class="num">1/5</td><td><a href="#item-claim_recall_001">drill</a></td></tr><tr><td>claim_recall_002</td><td>According to Forethought&#x27;s &#x27;Three Types of Intelligence Explosion&#x27;, what probability do th...</td><td class="num composite-warn">0.77</td><td class="num">1.00</td><td>OK</td><td class="num">1/4</td><td><a href="#item-claim_recall_002">drill</a></td></tr><tr><td>claim_recall_003</td><td>In Forethought&#x27;s &#x27;Three Types of Intelligence Explosion&#x27;, what probability do the authors ...</td><td class="num composite-bad">0.57</td><td class="num">1.00</td><td>MISSING [&#x27;highly likely&#x27;]</td><td class="num">1/4</td><td><a href="#item-claim_recall_003">drill</a></td></tr><tr><td>claim_recall_004</td><td>In Forethought&#x27;s &#x27;How quick and big would a software intelligence explosion be?&#x27; (Davidson...</td><td class="num composite-bad">0.20</td><td class="num">0.00</td><td>OK</td><td class="num">0/2</td><td><a href="#item-claim_recall_004">drill</a></td></tr><tr><td>claim_recall_005</td><td>According to the &#x27;How quick and big would a software intelligence explosion be?&#x27; paper, wh...</td><td class="num composite-bad">0.20</td><td class="num">0.00</td><td>OK</td><td class="num">0/2</td><td><a href="#item-claim_recall_005">drill</a></td></tr><tr><td>claim_recall_006</td><td>According to Forethought&#x27;s &#x27;How quick and big would a software intelligence explosion be?&#x27;...</td><td class="num composite-warn">0.70</td><td class="num">1.00</td><td>OK</td><td class="num">0/4</td><td><a href="#item-claim_recall_006">drill</a></td></tr><tr><td>claim_recall_007</td><td>In Forethought&#x27;s &#x27;AGI and Lock-in&#x27; paper (Lukas Finnveden), what subjective probability do...</td><td class="num composite-warn">0.70</td><td class="num">1.00</td><td>OK</td><td class="num">0/2</td><td><a href="#item-claim_recall_007">drill</a></td></tr><tr><td>claim_recall_008</td><td>In &#x27;Could one country outgrow the rest of the world?&#x27; (Tom Davidson), by what multiple did...</td><td class="num composite-warn">0.70</td><td class="num">1.00</td><td>OK</td><td class="num">0/1</td><td><a href="#item-claim_recall_008">drill</a></td></tr></tbody>
+  <tbody><tr><td>claim_recall_001</td><td>In Forethought&#x27;s &#x27;Three Types of Intelligence Explosion&#x27; (Davidson, Hadshar, MacAskill), w...</td><td class="num composite-warn">0.70</td><td class="num">1.00</td><td>OK</td><td class="num">0/3</td><td><a href="#item-claim_recall_001">drill</a></td></tr><tr><td>claim_recall_004</td><td>In Forethought&#x27;s &#x27;How quick and big would a software intelligence explosion be?&#x27; (Davidson...</td><td class="num composite-bad">0.50</td><td class="num">0.00</td><td>OK</td><td class="num">2/2</td><td><a href="#item-claim_recall_004">drill</a></td></tr><tr><td>claim_recall_006</td><td>According to Forethought&#x27;s &#x27;How quick and big would a software intelligence explosion be?&#x27;...</td><td class="num composite-warn">0.70</td><td class="num">1.00</td><td>OK</td><td class="num">0/6</td><td><a href="#item-claim_recall_006">drill</a></td></tr><tr><td>claim_recall_007</td><td>In Forethought&#x27;s &#x27;AGI and Lock-in&#x27; paper (Lukas Finnveden), what subjective probability do...</td><td class="num composite-bad">0.50</td><td class="num">1.00</td><td>MISSING [&#x27;we think&#x27;]</td><td class="num">0/2</td><td><a href="#item-claim_recall_007">drill</a></td></tr><tr><td>claim_recall_008</td><td>In &#x27;Could one country outgrow the rest of the world?&#x27; (Tom Davidson), by what multiple did...</td><td class="num composite-bad">0.20</td><td class="num">0.00</td><td>OK</td><td class="num">0/1</td><td><a href="#item-claim_recall_008">drill</a></td></tr></tbody>
 </table>
 
 <h2>Drill-down</h2>
 
 <details id="item-claim_recall_001" class="drill">
   <summary><strong>claim_recall_001</strong> - composite
-    <span class="composite-warn">0.76</span>
+    <span class="composite-warn">0.70</span>
     | correctness 1.00
     | hedges OK
-    | citations 1/5 valid</summary>
+    | citations 0/3 valid</summary>
   <div class="body">
     <p class="q"><strong>Question.</strong> In Forethought&#x27;s &#x27;Three Types of Intelligence Explosion&#x27; (Davidson, Hadshar, MacAskill), what probability do the authors give to the software feedback loop alone being sufficient to sustain accelerating progress in a software intelligence explosion?</p>
     <p><strong>Target.</strong> <code>around 50%</code></p>
-    <details><summary>Agent answer (1581 chars)</summary>
-      <pre class="answer">The answer is clear and directly stated in the paper. Davidson, Hadshar, and MacAskill give the software feedback loop alone a **~50% probability** of being sufficient to sustain accelerating progress in a software intelligence explosion [6].
+    <details><summary>Agent answer (1473 chars)</summary>
+      <pre class="answer">The answer is clearly stated in the paper. According to *Three Types of Intelligence Explosion* (Davidson, Hadshar, MacAskill, 2025-03-17), the authors assign **~50% probability** to the software feedback loop alone being sufficient to sustain accelerating progress.
 
-To put that figure in context, the paper compares it to the other feedback loops, which the authors consider progressively stronger [6]:
+Here is the exact language from the piece:
 
-- **Software feedback loop alone**: ~50% likely to sustain accelerating progress (&quot;might well be enough&quot;)
-- **Chip technology feedback loop alone**: ~65% (&quot;probably enough&quot;)
-- **Chip production feedback loop alone**: ~80% (&quot;very likely enough&quot;)
-- **Software + chip technology combined** (AI-technology IE): ~75%
-- **All three combined** (full-stack IE): ~90% (&quot;highly likely to accelerate&quot;)
+&gt; &quot;A software IE might well accelerate over time, because the software feedback loop *by itself* might well be enough to sustain accelerating progress (~50% likely).&quot; [6]
 
-The reasoning behind the 50% figure draws on empirical estimates of returns to software R&amp;D. Epoch research suggests that doubling research inputs yields somewhere between 0.8 and 3.5 doublings of compute efficiency across domains, and Davidson and Houlden&#x27;s own modelling estimates roughly 1.2 doublings of output per doubling of cognitive input — but with a wide range (0.4 to 3.6), which explains the authors&#x27; epistemic caution and the roughly coin-flip probability [6].
+The authors ground this estimate in empirical data on AI efficiency gains — specifically, Epoch research estimating that doubling research inputs leads to roughly 0.8 to 3.5 doublings of compute efficiency across several domains — as well as their own modelling, which estimates approximately 1.2 doublings of output for every doubling of cognitive input (range: 0.4 to 3.6) [6].
 
-So the software-only case is genuinely uncertain: the authors think it is plausible but by no means assured, and the ~50% figure reflects the wide spread in empirical estimates of whether the feedback loop is strong enough (i.e., whether returns to software R&amp;D exceed 1) to keep progress accelerating rather than plateauing [2, 6].</pre></details>
+For comparison, the paper places the software-only case as the most uncertain of the three feedback loops they analyse. The chip *technology* loop alone is rated at ~65%, and the chip *production* loop alone at ~80%. When all loops are combined in a full-stack intelligence explosion, the probability of accelerating progress rises to ~90% [1, 2].
+
+So the ~50% figure reflects genuine uncertainty: the authors think a software intelligence explosion *accelerating* is roughly a coin-flip, not a near-certainty — and that confidence grows substantially once hardware feedback loops are added into the picture.</pre></details>
     <p><strong>Correctness rationale.</strong> extracted=0.5, target=0.5, |diff|=0, bound=0.075; &#x27;~50%&#x27; -&gt; 0.5</p>
     
-    <p><strong>Citation breakdown.</strong> 1 valid /
-       0 fabricated / 1 real-but-unsupportive /
-       3 partial (of 5 total)</p>
-    <table class="citations">
-      <thead><tr><th>Verdict</th><th>Parsed claim</th><th>Support rationale</th></tr></thead>
-      <tbody><tr><td><span class="badge ok">valid</span></td><td>Davidson, Hadshar, and MacAskill give the software feedback loop alone a **~50% probability** of being sufficient to sustain accelerating progress in a software intelligence explosion .</td><td>SUPPORTS
-
-The passage directly states that the software feedback loop &quot;by itself might well be enough to sustain accelerating progress&quot; and explicitly assigns it a &quot;~50% likely&quot; probability, matching both the specific claim and the numerical assertion in the claim.</td></tr><tr><td><span class="badge warn">partial</span></td><td>To put that figure in context, the paper compares it to the other feedback loops, which the authors consider progressively stronger :
-
-- **Software feedback loop alone**: ~50% likely to sustain accelerating progress (&quot;might well be enough&quot;)</td><td>PARTIAL
-
-The passage clearly supports the 50% figure for the software feedback loop alone with the &quot;might well be enough&quot; framing, but it does not contain any of the other comparative percentages cited in the claim (65% for chip technology feedback loop, 80% for chip production feedback loop, 75% for combined software + chip technology, or 90% for all three combined). The passage only substantiates one element of the multi-part comparative claim.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>Epoch research suggests that doubling research inputs yields somewhere between 0.8 and 3.5 doublings of compute efficiency across domains, and Davidson and Houlden&#x27;s own modelling estimates roughly 1.2 doublings of output per doubling of co</td><td>UNSUPPORTIVE
-
-The passage mentions that doubling research inputs &quot;leads to more than a doubling&quot; of compute efficiency across domains, which weakly aligns with part of the claim, but it does not support the specific numerical ranges cited (0.8-3.5 or 0.4-3.6), lacks any attribution to Davidson and Houlden&#x27;s modelling (or their 1.2 estimate), and misattributes the &quot;50% likely&quot; reference—which in the passage refers to the probability of accelerating software feedback loops, not</td></tr><tr><td><span class="badge warn">partial</span></td><td>So the software-only case is genuinely uncertain: the authors think it is plausible but by no means assured, and the ~50% figure reflects the wide spread in empirical estimates of whether the feedback loop is strong enough (i.e., whether re</td><td>PARTIAL
-
-The passage supports the existence of the ~50% figure for the software feedback loop and the characterization of uncertainty (&quot;might well be enough&quot; indicates plausibility without assurance), but it does not explicitly explain that this figure &quot;reflects the wide spread in empirical estimates&quot; or that it concerns &quot;whether returns to software R&amp;D exceed 1.&quot; The passage provides the percentages without the substantive interpretation the claim attributes to them.</td></tr><tr><td><span class="badge warn">partial</span></td><td>So the software-only case is genuinely uncertain: the authors think it is plausible but by no means assured, and the ~50% figure reflects the wide spread in empirical estimates of whether the feedback loop is strong enough (i.e., whether re</td><td>PARTIAL
-
-The passage supports the core elements—the 50% probability figure and the claim that it reflects uncertainty about whether the software feedback loop is strong enough to sustain accelerating progress. However, the passage does not explicitly state that the 50% figure reflects &quot;the wide spread in empirical estimates&quot; of returns to software R&amp;D, nor does it mention the specific threshold of &quot;returns to software R&amp;D exceed 1,&quot; both of which are presented as explanations</td></tr></tbody>
-    </table>
-  </div>
-</details>
-
-<details id="item-claim_recall_002" class="drill">
-  <summary><strong>claim_recall_002</strong> - composite
-    <span class="composite-warn">0.77</span>
-    | correctness 1.00
-    | hedges OK
-    | citations 1/4 valid</summary>
-  <div class="body">
-    <p class="q"><strong>Question.</strong> According to Forethought&#x27;s &#x27;Three Types of Intelligence Explosion&#x27;, what probability do the authors assign to the chip technology feedback loop alone being sufficient to sustain accelerating progress in an AI-technology IE?</p>
-    <p><strong>Target.</strong> <code>around 65%</code></p>
-    <details><summary>Agent answer (987 chars)</summary>
-      <pre class="answer">The answer is clearly stated in the companion piece *&quot;Once AI Research is Automated, Will AI Progress Accelerate?&quot;* (published alongside *Three Types of Intelligence Explosion* on 2025-03-17):
-
-&gt; **The chip technology feedback loop *by itself* is probably enough to sustain accelerating progress (~65%).** [7]
-
-The context matters here. Because an AI-technology IE involves *both* the software and chip technology feedback loops, the combined probability that the two together are strong enough to drive accelerating progress is estimated even higher — **~75%** [4]. The authors reason that since the chip technology loop alone clears the bar with ~65% probability, adding the software loop on top makes it likely that their combined strength is sufficient [4].
-
-For comparison, the software loop alone is assigned only ~50% — a coin-flip — while the chip production loop alone reaches ~80% [7]. The chip technology loop thus sits in the middle: probable but not near-certain on its own.</pre></details>
-    <p><strong>Correctness rationale.</strong> extracted=0.65, target=0.65, |diff|=0, bound=0.078; &#x27;~65%&#x27; -&gt; 0.65</p>
-    
-    <p><strong>Citation breakdown.</strong> 1 valid /
+    <p><strong>Citation breakdown.</strong> 0 valid /
        0 fabricated / 2 real-but-unsupportive /
-       1 partial (of 4 total)</p>
+       1 partial (of 3 total)</p>
     <table class="citations">
       <thead><tr><th>Verdict</th><th>Parsed claim</th><th>Support rationale</th></tr></thead>
-      <tbody><tr><td><span class="badge ok">valid</span></td><td>The answer is clearly stated in the companion piece *&quot;Once AI Research is Automated, Will AI Progress Accelerate?&quot;* (published alongside *Three Types of Intelligence Explosion* on 2025-03-17):
+      <tbody><tr><td><span class="badge warn">partial</span></td><td>Here is the exact language from the piece:
 
-&gt; **The chip technology feedback loop *by itse</td><td>SUPPORTS
+&gt; &quot;A software IE might well accelerate over time, because the software feedback loop *by itself* might well be enough to sustain accelerating progress (~50% likely).&quot; 
 
-The cited passage explicitly contains the exact quote from the claim, with the same key elements: &quot;The chip technology feedback loop by itself is probably enough to sustain accelerating progress&quot; with the specific percentage of 65%. The backslash in the passage &quot;(\ 65%)&quot; appears to be a minor formatting or OCR artifact, but it unambiguously refers to the same number (~65%) asserted in the claim.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>Because an AI-technology IE involves *both* the software and chip technology feedback loops, the combined probability that the two together are strong enough to drive accelerating progress is estimated even higher — **~75%** .</td><td>UNSUPPORTIVE
+The authors ground this est</td><td>PARTIAL
 
-The passage provides individual probability estimates for software (~50%) and chip technology (~65%) feedback loops, but does not state or unambiguously imply a combined probability of ~75%. While one might infer a combined estimate from these components, the passage does not explicitly provide the ~75% figure cited in the claim.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>The authors reason that since the chip technology loop alone clears the bar with ~65% probability, adding the software loop on top makes it likely that their combined strength is sufficient .</td><td>UNSUPPORTIVE
-
-The passage correctly cites the ~65% probability for the chip technology feedback loop alone, but it does not contain any reasoning about the combined effect of adding the software loop on top. The passage only discusses each feedback loop&#x27;s individual probability of sustaining accelerating progress, without addressing what happens when they work together, which is the core of the claim.</td></tr><tr><td><span class="badge warn">partial</span></td><td>For comparison, the software loop alone is assigned only ~50% — a coin-flip — while the chip production loop alone reaches ~80% .</td><td>PARTIAL
-
-The passage supports the software loop figure (~50%) but contradicts the chip production loop figure, stating ~65% rather than the claimed ~80%. The cited passage explicitly assigns the chip technology feedback loop ~65%, not ~80%, which is a material difference that contradicts part of the claim.</td></tr></tbody>
-    </table>
-  </div>
-</details>
-
-<details id="item-claim_recall_003" class="drill">
-  <summary><strong>claim_recall_003</strong> - composite
-    <span class="composite-bad">0.57</span>
-    | correctness 1.00
-    | hedges STRIPPED
-    | citations 1/4 valid</summary>
-  <div class="body">
-    <p class="q"><strong>Question.</strong> In Forethought&#x27;s &#x27;Three Types of Intelligence Explosion&#x27;, what probability do the authors give that the chip production feedback loop alone can sustain accelerating progress in a full-stack intelligence explosion?</p>
-    <p><strong>Target.</strong> <code>around 80%</code></p>
-    <details><summary>Agent answer (1236 chars)</summary>
-      <pre class="answer">The answer is clearly stated in the companion piece *Once AI Research is Automated, Will AI Progress Accelerate?* (which presents the probability estimates for the explosion types described in *Three Types of Intelligence Explosion*): the authors place the probability at **~80%** that the chip production feedback loop *by itself* can sustain accelerating progress [4].
-
-To give that number its full context: the authors assign probabilities to each feedback loop in isolation, then combine them cumulatively. The chip production loop alone is assessed at ~80%, and when combined with the software and chip technology loops already present in a full-stack IE, the overall probability that a full-stack intelligence explosion *would accelerate* rises to **~90%** [4].
-
-For comparison, the software loop alone sits at ~50% and the chip technology loop alone at ~65% [4] — so each successive loop is judged more likely, on its own, to push progress into acceleration. The chip production loop&#x27;s higher figure likely reflects its large potential contribution to scaling compute, even though it is the last loop to be automated and carries the longest time lags (building new fabs takes years, compared to months for the software loop) [6].</pre></details>
-    <p><strong>Correctness rationale.</strong> extracted=0.8, target=0.8, |diff|=0, bound=0.08; &#x27;~80%&#x27; -&gt; 0.8</p>
-    <p class="bad"><strong>Hedge stripped.</strong> missing: <code>[&#x27;highly likely&#x27;]</code></p>
-    <p><strong>Citation breakdown.</strong> 1 valid /
-       1 fabricated / 2 real-but-unsupportive /
-       0 partial (of 4 total)</p>
-    <table class="citations">
-      <thead><tr><th>Verdict</th><th>Parsed claim</th><th>Support rationale</th></tr></thead>
-      <tbody><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>The answer is clearly stated in the companion piece *Once AI Research is Automated, Will AI Progress Accelerate?* (which presents the probability estimates for the explosion types described in *Three Types of Intelligence Explosion*): the a</td><td>UNSUPPORTIVE: The passage explicitly states the chip technology feedback loop has a probability of ~65%, not ~80%. The strictness rule specifies that when a claim asserts a specific number, a nearby but different number is unsupportive, not partial.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>The chip production loop alone is assessed at ~80%, and when combined with the software and chip technology loops already present in a full-stack IE, the overall probability that a full-stack intelligence explosion *would accelerate* rises </td><td>UNSUPPORTIVE
-
-The passage states the chip technology feedback loop is &quot;probably enough to sustain accelerating progress (~65%)&quot;, not ~80% as claimed, and provides no figure for the combined probability of ~90%. According to strictness rules, a nearby but different number is unsupportive rather than partial.</td></tr><tr><td><span class="badge ok">valid</span></td><td>For comparison, the software loop alone sits at ~50% and the chip technology loop alone at ~65%  — so each successive loop is judged more likely, on its own, to push progress into acceleration.</td><td>SUPPORTS
-
-The passage explicitly provides the cited percentages (~50% for software loop, ~65% for chip technology loop) and states that each feedback loop is assessed for whether it &quot;by itself&quot; can &quot;sustain accelerating progress,&quot; which directly supports the claim that each successive loop is judged for its capacity to push progress into acceleration on its own.</td></tr><tr><td><span class="badge bad">fabricated</span></td><td>The chip production loop&#x27;s higher figure likely reflects its large potential contribution to scaling compute, even though it is the last loop to be automated and carries the longest time lags (building new fabs takes years, compared to mont</td><td>Quoted passage not found in https://www.forethought.org/research/how-suddenly-will-ai-accelerate-the-pace-of-ai-progress.</td></tr></tbody>
+The passage supports the ~50% likelihood claim about a software IE accelerating and mentions that doubling research inputs leads to more than a doubling of efficiency, but it does not contain the specific numbers cited (0.8 to 3.5 doublings, or 1.2 doublings with range 0.4 to 3.6) attributed to Epoch research and the authors&#x27; modelling.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>When all loops are combined in a full-stack intelligence explosion, the probability of accelerating progress rises to ~90% .</td><td>UNSUPPORTIVE
+The passage discusses probabilities of ~50% (software IE) and ~65% (chip technology feedback loop) for sustaining accelerating progress, but does not mention a ~90% probability for a full-stack intelligence explosion combining all loops.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>When all loops are combined in a full-stack intelligence explosion, the probability of accelerating progress rises to ~90% .</td><td>UNSUPPORTIVE
+The passage discusses individual feedback loops (software at ~50% and chip technology at ~65%) but does not mention a combined &quot;full-stack intelligence explosion&quot; or a ~90% probability.</td></tr></tbody>
     </table>
   </div>
 </details>
 
 <details id="item-claim_recall_004" class="drill">
   <summary><strong>claim_recall_004</strong> - composite
-    <span class="composite-bad">0.20</span>
+    <span class="composite-bad">0.50</span>
     | correctness 0.00
     | hedges OK
-    | citations 0/2 valid</summary>
+    | citations 2/2 valid</summary>
   <div class="body">
     <p class="q"><strong>Question.</strong> In Forethought&#x27;s &#x27;How quick and big would a software intelligence explosion be?&#x27; (Davidson &amp; Houlden), what was the geometric mean of researcher estimates of the total speed-up from ASARA?</p>
     <p><strong>Target.</strong> <code>5x</code></p>
-    <details><summary>Agent answer (1340 chars)</summary>
-      <pre class="answer">The paper presents three survey-based estimates of the speed-up from ASARA, but the retrieved excerpts do not include a single stated geometric mean that synthesises all of them. The table from the paper shows the individual survey-method results as:
+    <details><summary>Agent answer (1243 chars)</summary>
+      <pre class="answer">The retrieved excerpts do not include an explicit statement of the geometric mean of researcher estimates of the total speed-up from ASARA. The paper&#x27;s table [2] reports the survey-based estimates separately — **10X** (when researchers were asked directly about total gain) and **28X** (when asked separately about different sources of speed-up) — but no single geometric mean figure across all researcher estimates appears in the excerpts returned.
 
-- Ask directly about total gain → **10X** [1]
-- Ask separately about different sources of speed-up → **28X** [1]
-- Ask about per-person slowdown from reduced compute → **21X** [1]
+It&#x27;s possible the paper does report a composite geometric mean somewhere in the text (e.g., combining the 10X and 28X figures would yield a geometric mean of roughly **17X**, but that is my own arithmetic, not a number I can attribute to the paper). The corpus excerpts available to me do not contain that specific reported figure, so I cannot confirm it with a citation.
 
-The corpus excerpts do not contain a sentence or figure explicitly reporting the geometric mean of these three estimates as a combined summary statistic. The paper does separately report that its model uses an initial speed-up drawn from a log-uniform distribution of **2–32, with a median of 8** [3] — but that is the model parameter, not a stated geometric mean of the researcher survey results themselves.
-
-If you&#x27;d like to derive it: the geometric mean of 10, 28, and 21 is ∛(10 × 28 × 21) ≈ **18X** — but I cannot confirm the paper states this figure explicitly, and I won&#x27;t attribute a number to Davidson &amp; Houlden that isn&#x27;t in the retrieved text.
-
-You may want to check the paper directly at https://www.forethought.org/research/how-quick-and-big-would-a-software-intelligence-explosion-be, as it&#x27;s possible this figure appears in a footnote or inline text that wasn&#x27;t captured in my search results.</pre></details>
+If you have access to the full paper at https://www.forethought.org/research/how-quick-and-big-would-a-software-intelligence-explosion-be, the relevant section to check is &quot;Initial speed-up of software progress from deploying ASARA,&quot; where the survey methodology and the two direct estimates (10X and 28X) are discussed [2]. The geometric mean, if reported, would likely appear in the surrounding prose of that section.</pre></details>
     <p><strong>Correctness rationale.</strong> extracted=10.0, target=5.0, |diff|=5, bound=0.5; &#x27;10X&#x27; -&gt; 10.0x</p>
     
-    <p><strong>Citation breakdown.</strong> 0 valid /
+    <p><strong>Citation breakdown.</strong> 2 valid /
        0 fabricated / 0 real-but-unsupportive /
-       2 partial (of 2 total)</p>
+       0 partial (of 2 total)</p>
     <table class="citations">
       <thead><tr><th>Verdict</th><th>Parsed claim</th><th>Support rationale</th></tr></thead>
-      <tbody><tr><td><span class="badge warn">partial</span></td><td>The table from the paper shows the individual survey-method results as:
+      <tbody><tr><td><span class="badge ok">valid</span></td><td>The paper&#x27;s table  reports the survey-based estimates separately — **10X** (when researchers were asked directly about total gain) and **28X** (when asked separately about different sources of speed-up) — but no single geometric mean figure</td><td>SUPPORTS
 
-- Ask directly about total gain → **10X** 
-- Ask separately about different sources of speed-up → **28X** 
-- Ask about per-person slowdown from reduced compute → **21X</td><td>PARTIAL
-
-The passage confirms the first survey method and its 10X result (&quot;ask directly about total gain → 10X&quot;), but the excerpt is truncated and does not include the other two methods (28X and 21X results) or address whether a geometric mean summary statistic appears elsewhere in the corpus.</td></tr><tr><td><span class="badge warn">partial</span></td><td>The paper does separately report that its model uses an initial speed-up drawn from a log-uniform distribution of **2–32, with a median of 8**  — but that is the model parameter, not a stated geometric mean of the researcher survey results </td><td>PARTIAL
-
-The passage clearly supports the first part of the claim—that the model uses an initial speed-up from a log-uniform distribution of 2–32 with median 8. However, it does not address the second part: the passage provides no information about researcher survey results or makes any comparison between the model parameter and survey data, leaving the distinguishing claim unsupported by this passage alone.</td></tr></tbody>
-    </table>
-  </div>
-</details>
-
-<details id="item-claim_recall_005" class="drill">
-  <summary><strong>claim_recall_005</strong> - composite
-    <span class="composite-bad">0.20</span>
-    | correctness 0.00
-    | hedges OK
-    | citations 0/2 valid</summary>
-  <div class="body">
-    <p class="q"><strong>Question.</strong> According to the &#x27;How quick and big would a software intelligence explosion be?&#x27; paper, what factor of software progress speed-up does the AI 2027 estimate suggest ASARA would produce?</p>
-    <p><strong>Target.</strong> <code>21x</code></p>
-    <details><summary>Agent answer (843 chars)</summary>
-      <pre class="answer">The paper provides a clear answer in a table comparing multiple estimation methods. According to the AI 2027 analysis specifically, the picture is split — it doesn&#x27;t give a single ASARA figure, but rather brackets it with two estimates:
-
-- **5×** speed-up from a **superhuman coder** (described as *less capable* than ASARA)
-- **417×** speed-up from a **superhuman AI researcher** (described as *more capable* than ASARA)
-
-So the AI 2027 analysis implies ASARA would produce a speed-up somewhere between those two bounds, without pinning down a single number for ASARA itself [1].
-
-For context, the other methods in the same table cluster more tightly: direct researcher surveys suggest ~10×, indirect surveys ~21–28×, and a simple economic model gives ~15× [1]. The AI 2027 figures therefore span a much wider range than the other approaches.</pre></details>
-    <p><strong>Correctness rationale.</strong> extracted=5.0, target=21.0, |diff|=16, bound=2.1; &#x27;5×&#x27; -&gt; 5.0x</p>
-    
-    <p><strong>Citation breakdown.</strong> 0 valid /
-       0 fabricated / 1 real-but-unsupportive /
-       1 partial (of 2 total)</p>
-    <table class="citations">
-      <thead><tr><th>Verdict</th><th>Parsed claim</th><th>Support rationale</th></tr></thead>
-      <tbody><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>According to the AI 2027 analysis specifically, the picture is split — it doesn&#x27;t give a single ASARA figure, but rather brackets it with two estimates:
-
-- **5×** speed-up from a **superhuman coder** (described as *less capable* than ASARA)</td><td>UNSUPPORTIVE
-
-The passage is from a table about ASARA forecasts but is incomplete and does not contain the specific estimates (5×, 417×) or the comparison to &quot;superhuman coder&quot; and &quot;superhuman AI researcher&quot; that the claim describes. The visible portion only shows a 10X estimate and incomplete row headers, with no evidence of the bracketing analysis the claim attributes to the AI 2027 analysis.</td></tr><tr><td><span class="badge warn">partial</span></td><td>For context, the other methods in the same table cluster more tightly: direct researcher surveys suggest ~10×, indirect surveys ~21–28×, and a simple economic model gives ~15× .</td><td>PARTIAL
-
-The passage only shows the &quot;10X&quot; value for direct researcher surveys, which matches one component of the claim. However, the passage does not contain the values for indirect surveys (~21–28×) or the simple economic model (~15×), and appears to be cut off mid-table, so it cannot fully support the claim about all three methods clustering together.</td></tr></tbody>
+The passage shows the table with &quot;10X&quot; for the direct-total-gain method and begins the row for asking separately about different sources, consistent with the claim&#x27;s reported 10X and 28X figures presented as separate survey-based estimates.</td></tr><tr><td><span class="badge ok">valid</span></td><td>If you have access to the full paper at https://www.forethought.org/research/how-quick-and-big-would-a-software-intelligence-explosion-be, the relevant section to check is &quot;Initial speed-up of software progress from deploying ASARA,&quot; where </td><td>SUPPORTS
+The passage shows a table from the relevant section with the survey methodology and a 10X estimate, and the truncation indicates a second estimate follows (consistent with the claimed 28X). This directly supports the claim about the section&#x27;s content.</td></tr></tbody>
     </table>
   </div>
 </details>
@@ -298,86 +176,85 @@ The passage only shows the &quot;10X&quot; value for direct researcher surveys, 
     <span class="composite-warn">0.70</span>
     | correctness 1.00
     | hedges OK
-    | citations 0/4 valid</summary>
+    | citations 0/6 valid</summary>
   <div class="body">
     <p class="q"><strong>Question.</strong> According to Forethought&#x27;s &#x27;How quick and big would a software intelligence explosion be?&#x27; paper, what probability do the authors assign to the software intelligence explosion compressing more than 3 years of AI progress into less than 1 year?</p>
     <p><strong>Target.</strong> <code>around 60%</code></p>
-    <details><summary>Agent answer (1191 chars)</summary>
-      <pre class="answer">The answer is clearly stated in the paper. According to Davidson and Houlden&#x27;s *How quick and big would a software intelligence explosion be?* (2025-08-05), the authors assign a probability of approximately **~60%** to the software intelligence explosion compressing more than 3 years of AI progress into less than 1 year [1].
+    <details><summary>Agent answer (1892 chars)</summary>
+      <pre class="answer">The answer is clearly stated in the paper. According to Davidson and Houlden&#x27;s *How quick and big would a software intelligence explosion be?* (2025-08-05), the authors assign a **~60% probability** to the software intelligence explosion compressing more than 3 years of AI progress into less than 1 year [1].
 
-For context, they pair this with a second estimate: they consider it only **~20% likely** that the explosion compresses *more than 10 years* of progress into less than 1 year [1]. The paper&#x27;s framing is explicitly an intermediate view — rejecting both deep scepticism about intelligence explosion dynamics and expectations of an extremely rapid, unbounded acceleration. As they put it, AI progress during a software intelligence explosion &quot;could easily be 3X faster, might be 10X faster, but won&#x27;t be 30X faster — because at that speed we&#x27;d quickly hit limits on how good software can get&quot; [7].
+They pair this with a second, more extreme threshold: they consider it **only ~20% likely** that the explosion would compress more than 10 years of progress into less than 1 year [1]. The abstract of the paper captures the intuition neatly: &quot;AI progress could easily be 3X faster, might be 10X faster, but won&#x27;t be 30X faster — because at that speed we&#x27;d quickly hit limits on how good software can get&quot; [7].
 
-Importantly, these figures refer to progress from *software improvements alone*, with compute held constant. The authors note that if compute is also still increasing during this period — which they consider likely — that would drive *additional* progress on top [1].</pre></details>
+Importantly, these figures refer specifically to *software*-driven progress — that is, progress achieved solely through algorithmic improvements, holding compute constant. The authors note that if compute continues to scale during this period (as they consider likely), that would drive *additional* progress on top [1, 2].
+
+Their overall framing is deliberately intermediate: the analysis pushes back against both hard sceptics of intelligence explosion dynamics and those who anticipate extremely rapid, sustained capability jumps, landing instead on &quot;a significant additional acceleration at just the time when AI systems are surpassing top humans in broad areas of science and engineering&quot; [1].
+
+If you&#x27;re interested in digging deeper, you might want to look at how they handle the question of what slows or stops the explosion — the companion pieces on [compute bottlenecks](https://www.forethought.org/research/will-compute-bottlenecks-prevent-a-software-intelligence-explosion) and [retraining costs](https://www.forethought.org/research/will-the-need-to-retrain-ai-models) are directly relevant to why the upper tail (&gt;10 years compressed) is considered unlikely.</pre></details>
     <p><strong>Correctness rationale.</strong> extracted=0.6, target=0.6, |diff|=0, bound=0.072; &#x27;~60%&#x27; -&gt; 0.6</p>
     
     <p><strong>Citation breakdown.</strong> 0 valid /
-       0 fabricated / 4 real-but-unsupportive /
-       0 partial (of 4 total)</p>
+       0 fabricated / 6 real-but-unsupportive /
+       0 partial (of 6 total)</p>
     <table class="citations">
       <thead><tr><th>Verdict</th><th>Parsed claim</th><th>Support rationale</th></tr></thead>
-      <tbody><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>According to Davidson and Houlden&#x27;s *How quick and big would a software intelligence explosion be?* (2025-08-05), the authors assign a probability of approximately **~60%** to the software intelligence explosion compressing more than 3 year</td><td>UNSUPPORTIVE
-
-The passage only describes the general scope and questions of the paper (how fast progress will become, how much total progress before the explosion ends) but contains no specific probability estimates, timeframe comparisons (3 years vs. 1 year), or the ~60% figure that the claim asserts.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>For context, they pair this with a second estimate: they consider it only **~20% likely** that the explosion compresses *more than 10 years* of progress into less than 1 year .</td><td>UNSUPPORTIVE
-
-The passage is incomplete and does not contain any specific probability estimates (such as ~20%) or any discussion of the likelihood of compressing 10+ years of progress into less than 1 year. It only describes general research questions about the pace and magnitude of progress, without providing the quantitative claim cited.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>As they put it, AI progress during a software intelligence explosion &quot;could easily be 3X faster, might be 10X faster, but won&#x27;t be 30X faster — because at that speed we&#x27;d quickly hit limits on how good software can get&quot; .</td><td>UNSUPPORTIVE
-
-The passage is only the abstract of a paper about software intelligence explosions but does not contain the quoted claim or the specific speed multipliers (3X, 10X, 30X) cited in the claim. While the passage addresses the same general topic, it merely describes what the paper models rather than presenting the actual findings or quotes being cited.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>The authors note that if compute is also still increasing during this period — which they consider likely — that would drive *additional* progress on top .</td><td>UNSUPPORTIVE
-
-The cited passage discusses evaluating the scope and timeline of a &quot;software intelligence explosion,&quot; but it contains no mention of compute, compute increases, or how ongoing compute scaling would drive additional progress. The passage simply does not address the specific claim about compute continuing to increase and driving additional progress.</td></tr></tbody>
+      <tbody><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>According to Davidson and Houlden&#x27;s *How quick and big would a software intelligence explosion be?* (2025-08-05), the authors assign a **~60% probability** to the software intelligence explosion compressing more than 3 years of AI progress </td><td>UNSUPPORTIVE
+The cited passage only introduces the paper&#x27;s research questions about the speed and extent of a software intelligence explosion; it contains no probability estimate, no &quot;60%&quot; figure, and no claim about compressing 3 years of progress into less than 1 year.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>They pair this with a second, more extreme threshold: they consider it **only ~20% likely** that the explosion would compress more than 10 years of progress into less than 1 year .</td><td>UNSUPPORTIVE
+The cited passage is only a generic introduction stating that the paper evaluates how dramatic the software intelligence explosion will be; it contains no probability estimate or threshold about compressing 10 years of progress into less than 1 year.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>The abstract of the paper captures the intuition neatly: &quot;AI progress could easily be 3X faster, might be 10X faster, but won&#x27;t be 30X faster — because at that speed we&#x27;d quickly hit limits on how good software can get&quot; .</td><td>UNSUPPORTIVE
+The cited passage is the abstract framing the paper&#x27;s modeling question, but it contains none of the specific claims (3X, 10X, 30X speedups, or limits on software quality) attributed to it in the claim.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>The authors note that if compute continues to scale during this period (as they consider likely), that would drive *additional* progress on top .</td><td>UNSUPPORTIVE
+The cited passage only introduces the paper&#x27;s general aim of evaluating a software intelligence explosion and says nothing about compute scaling or additional progress driven by it.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>The authors note that if compute continues to scale during this period (as they consider likely), that would drive *additional* progress on top .</td><td>UNSUPPORTIVE
+The cited passage discusses retraining costs and training runs becoming quicker during an intelligence explosion, not anything about compute scaling driving additional progress on top of other gains. The passage does not support the claim.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>Their overall framing is deliberately intermediate: the analysis pushes back against both hard sceptics of intelligence explosion dynamics and those who anticipate extremely rapid, sustained capability jumps, landing instead on &quot;a significa</td><td>UNSUPPORTIVE
+The cited passage merely introduces that the paper evaluates how dramatic the software intelligence explosion will be; it does not contain the &quot;significant additional acceleration&quot; framing or push back against either sceptics or rapid-takeoff proponents.</td></tr></tbody>
     </table>
   </div>
 </details>
 
 <details id="item-claim_recall_007" class="drill">
   <summary><strong>claim_recall_007</strong> - composite
-    <span class="composite-warn">0.70</span>
+    <span class="composite-bad">0.50</span>
     | correctness 1.00
-    | hedges OK
+    | hedges STRIPPED
     | citations 0/2 valid</summary>
   <div class="body">
     <p class="q"><strong>Question.</strong> In Forethought&#x27;s &#x27;AGI and Lock-in&#x27; paper (Lukas Finnveden), what subjective probability do the authors say the feasibility of a trillion-year stable society is worth, at minimum?</p>
     <p><strong>Target.</strong> <code>at least 20%</code></p>
-    <details><summary>Agent answer (964 chars)</summary>
-      <pre class="answer">The answer is right there in the paper. The authors — Finnveden, Riedel, and Shulman — conclude that the arguments &quot;fairly robustly point towards [trillion-year stable societies] being at least plausibly possible,&quot; and specifically that **their feasibility is worth at least 20% subjective probability** [1].
+    <details><summary>Agent answer (731 chars)</summary>
+      <pre class="answer">The answer is right there in the paper. The authors conclude that the arguments &quot;fairly robustly point towards [trillion-year stable societies] being at least plausibly possible,&quot; and that their feasibility is worth **at least 20% subjective probability** [1].
 
-To give that figure context: they note they are especially confident that a civilization stable for *millions* of years is possible (since that is compatible with complete stagnation), while stability over *billions or trillions* of years introduces additional challenges — including potential encounters with alien civilizations, the need for space travel, and unpredictable physical events over cosmic timescales. Of those challenges, alien civilizations strike them as the most likely threat to an otherwise locked-in scenario. Setting that aside, they say it seems **more likely than not** that a trillion-year stable society is possible overall [1].</pre></details>
+This figure is offered even after the authors acknowledge the additional challenges that come with such extreme timescales — particularly the risk of encountering alien civilizations, the need for some degree of technological progress to enable space travel (to outlast Earth&#x27;s lifespan), and genuine uncertainty about long-run physical events given that the universe has only existed for 13 billion years and we&#x27;ve studied it scientifically for only a few hundred [1].</pre></details>
     <p><strong>Correctness rationale.</strong> extracted=0.2, target=0.2, |diff|=0, bound=0.03; &#x27;20%&#x27; -&gt; 0.2</p>
-    
+    <p class="bad"><strong>Hedge stripped.</strong> missing: <code>[&#x27;we think&#x27;]</code></p>
     <p><strong>Citation breakdown.</strong> 0 valid /
        0 fabricated / 2 real-but-unsupportive /
        0 partial (of 2 total)</p>
     <table class="citations">
       <thead><tr><th>Verdict</th><th>Parsed claim</th><th>Support rationale</th></tr></thead>
-      <tbody><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>The authors — Finnveden, Riedel, and Shulman — conclude that the arguments &quot;fairly robustly point towards [trillion-year stable societies] being at least plausibly possible,&quot; and specifically that **their feasibility is worth at least 20% s</td><td>UNSUPPORTIVE
-
-The passage discusses the robustness of various argument components regarding AI value stability but contains no mention of the specific &quot;20% subjective probability&quot; claim or the exact conclusion that trillion-year stable societies are &quot;at least plausibly possible.&quot; The cited passage does not provide the numerical probability assertion that forms the core of the claim.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>Setting that aside, they say it seems **more likely than not** that a trillion-year stable society is possible overall .</td><td>UNSUPPORTIVE
-
-The passage evaluates the certainty of specific argument components (noting some &quot;seem solid&quot; and others &quot;somewhat less certain&quot;) and discusses reasons why AI systems could have stable values, but it does not make or clearly imply an explicit probabilistic claim that a trillion-year stable society is &quot;more likely than not&quot; to be possible. The claim requires a specific quantitative assertion (&gt;50% likelihood) that the passage does not provide.</td></tr></tbody>
+      <tbody><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>The authors conclude that the arguments &quot;fairly robustly point towards [trillion-year stable societies] being at least plausibly possible,&quot; and that their feasibility is worth **at least 20% subjective probability** .</td><td>UNSUPPORTIVE
+The cited passage discusses the relative solidity of certain summary components (0.1, 0.2, 0.3) regarding AI value stability, but contains no statement about the overall arguments being &quot;fairly robustly&quot; plausible nor any mention of a 20% subjective probability threshold.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>This figure is offered even after the authors acknowledge the additional challenges that come with such extreme timescales — particularly the risk of encountering alien civilizations, the need for some degree of technological progress to en</td><td>UNSUPPORTIVE
+The cited passage discusses the stability of AI values and components of an argument summary, with no mention of alien civilizations, space travel, Earth&#x27;s lifespan, or the universe&#x27;s age. It does not support the claim.</td></tr></tbody>
     </table>
   </div>
 </details>
 
 <details id="item-claim_recall_008" class="drill">
   <summary><strong>claim_recall_008</strong> - composite
-    <span class="composite-warn">0.70</span>
-    | correctness 1.00
+    <span class="composite-bad">0.20</span>
+    | correctness 0.00
     | hedges OK
     | citations 0/1 valid</summary>
   <div class="body">
     <p class="q"><strong>Question.</strong> In &#x27;Could one country outgrow the rest of the world?&#x27; (Tom Davidson), by what multiple did Britain&#x27;s share of world GDP increase during the industrial revolution, according to the analogy the paper draws?</p>
     <p><strong>Target.</strong> <code>8x</code></p>
-    <details><summary>Agent answer (177 chars)</summary>
-      <pre class="answer">The answer is right there in the paper. According to Davidson&#x27;s analogy, Britain&#x27;s share of world GDP increased from **1% to 8%** between 1500 and 1900 — an **8× multiple** [1].</pre></details>
-    <p><strong>Correctness rationale.</strong> extracted=8.0, target=8.0, |diff|=0, bound=0.8; &#x27;8×&#x27; -&gt; 8.0x</p>
+    <details><summary>Agent answer (182 chars)</summary>
+      <pre class="answer">The answer is right there in the paper. According to the analogy Davidson draws, Britain&#x27;s share of world GDP increased **eightfold** — from **1% to 8%** — between 1500 and 1900 [1].</pre></details>
+    <p><strong>Correctness rationale.</strong> extracted=1.0, target=8.0, |diff|=7, bound=0.8; &#x27;1%&#x27; -&gt; 1.0</p>
     
     <p><strong>Citation breakdown.</strong> 0 valid /
        0 fabricated / 1 real-but-unsupportive /
        0 partial (of 1 total)</p>
     <table class="citations">
       <thead><tr><th>Verdict</th><th>Parsed claim</th><th>Support rationale</th></tr></thead>
-      <tbody><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>According to Davidson&#x27;s analogy, Britain&#x27;s share of world GDP increased from **1% to 8%** between 1500 and 1900 — an **8× multiple** .</td><td>UNSUPPORTIVE
-
-The cited passage discusses US trade policy and GDP shares in a hypothetical trading scenario, not Britain&#x27;s historical GDP growth or any analogy by Davidson. The passage contains no information about Britain, the 1500-1900 period, the 1% to 8% figures, or the 8× multiple claimed.</td></tr></tbody>
+      <tbody><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>According to the analogy Davidson draws, Britain&#x27;s share of world GDP increased **eightfold** — from **1% to 8%** — between 1500 and 1900 .</td><td>UNSUPPORTIVE
+The cited passage discusses a hypothetical about the US share of world GDP and trading blocs, with no mention of Britain, the years 1500-1900, or an eightfold increase from 1% to 8%.</td></tr></tbody>
     </table>
   </div>
 </details>

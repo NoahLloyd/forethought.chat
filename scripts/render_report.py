@@ -81,6 +81,23 @@ def _to_view(sample: Any) -> ItemView:
     )
 
 
+def _wall_seconds(log) -> float:
+    stats = getattr(log, "stats", None)
+    if stats is None:
+        return 0.0
+    started = getattr(stats, "started_at", None)
+    completed = getattr(stats, "completed_at", None)
+    if started is None or completed is None:
+        return 0.0
+    from datetime import datetime
+    try:
+        s = datetime.fromisoformat(str(started).replace("Z", "+00:00"))
+        c = datetime.fromisoformat(str(completed).replace("Z", "+00:00"))
+        return max(0.0, (c - s).total_seconds())
+    except Exception:
+        return 0.0
+
+
 def _aggregate(views: list[ItemView]) -> dict[str, Any]:
     n = len(views)
     if n == 0:
@@ -107,7 +124,17 @@ def _render_markdown(log: Any, views: list[ItemView], agg: dict[str, Any]) -> st
     lines: list[str] = []
     lines.append("# forethought-bench - Track 2 (Specific Claim Recall)")
     lines.append("")
-    lines.append(f"**Status**: {log.status}    **Items**: {agg['n']}    **Run**: `{eval_meta.run_id}`")
+    em = eval_meta.metadata or {}
+    tier = em.get("tier", "?")
+    bv = em.get("benchmark_version", "?")
+    judge_name = em.get("judge", "?")
+    agent_name = em.get("agent", "?")
+    wall_s = _wall_seconds(log)
+    lines.append(
+        f"**Status**: {log.status}    **Items**: {agg['n']}    **Tier**: `{tier}`    "
+        f"**Bench v**: `{bv}`    **Wall**: {wall_s:.0f}s"
+    )
+    lines.append(f"**Run**: `{eval_meta.run_id}`    **Agent**: `{agent_name}`    **Judge**: `{judge_name}`")
     if started_at:
         lines.append(f"**Started**: {started_at}")
     lines.append("")
@@ -329,8 +356,9 @@ def _render_html(log: Any, views: list[ItemView], agg: dict[str, Any]) -> str:
 </style></head><body>
 
 <h1>forethought-bench - Track 2 (Specific Claim Recall)</h1>
-<p class="meta">Run <code>__RUN__</code> &middot; status <strong>__STATUS__</strong> &middot; __N__ items &middot; agent
-<code>__AGENT__</code> &middot; corpus <code>__CORPUS_RECORDS__</code> records</p>
+<p class="meta">Run <code>__RUN__</code> &middot; status <strong>__STATUS__</strong> &middot; __N__ items &middot; tier <code>__TIER__</code>
+&middot; bench v<code>__BV__</code> &middot; wall <strong>__WALL__</strong>s</p>
+<p class="meta">Agent <code>__AGENT__</code> &middot; judge <code>__JUDGE__</code> &middot; corpus <code>__CORPUS_RECORDS__</code> records</p>
 
 <h2>What this evaluates</h2>
 <div class="pipeline">
@@ -390,8 +418,16 @@ __DRILL__
 
     total = agg["citations_total"] or 1
     out = template
+    em = eval_meta.metadata or {}
+    tier_val = em.get("tier", "?")
+    bv_val = em.get("benchmark_version", "?")
+    judge_val = em.get("judge", "?")
     repl = {
         "__RUN__": esc(eval_meta.run_id),
+        "__TIER__": esc(tier_val),
+        "__BV__": esc(bv_val),
+        "__JUDGE__": esc(judge_val),
+        "__WALL__": str(int(_wall_seconds(log))),
         "__STATUS__": esc(log.status),
         "__N__": str(agg["n"]),
         "__AGENT__": "forethought-chat:http://localhost:3000",

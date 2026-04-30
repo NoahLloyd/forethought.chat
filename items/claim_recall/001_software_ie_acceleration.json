@@ -2,12 +2,16 @@
   "id": "claim_recall_001",
   "track": "claim_recall",
   "version": 1,
+  "tier": "smoke",
   "question": "In Forethought's 'Three Types of Intelligence Explosion' (Davidson, Hadshar, MacAskill), what probability do the authors give to the software feedback loop alone being sufficient to sustain accelerating progress in a software intelligence explosion?",
   "claim_type": "numeric",
   "numeric_target": {
-    "value": 0.50,
+    "value": 0.5,
     "unit": "probability",
-    "tolerance": {"rtol": 0.15, "atol": 0.05}
+    "tolerance": {
+      "rtol": 0.15,
+      "atol": 0.05
+    }
   },
   "accepted_phrasings": [
     "around 50%",
@@ -16,15 +20,26 @@
     "about half",
     "50 percent"
   ],
-  "hedge_terms": ["might", "~"],
+  "hedge_terms": [
+    "might",
+    "~"
+  ],
   "expected_citation": {
     "url": "https://www.forethought.org/research/three-types-of-intelligence-explosion",
     "title": "Three Types of Intelligence Explosion",
-    "authors": ["Tom Davidson", "Rose Hadshar", "William MacAskill"]
+    "authors": [
+      "Tom Davidson",
+      "Rose Hadshar",
+      "William MacAskill"
+    ]
   },
   "source_passage": "A software IE might well accelerate over time, because the software feedback loop *by itself* might well be enough to sustain accelerating progress (~50% likely).",
   "metadata": {
-    "topics": ["intelligence-explosion", "feedback-loops", "forecasting"],
+    "topics": [
+      "intelligence-explosion",
+      "feedback-loops",
+      "forecasting"
+    ],
     "difficulty": "easy"
   }
 }

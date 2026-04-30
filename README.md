@@ -4,40 +4,38 @@ A benchmark for agents that answer macrostrategy questions grounded in
 [Forethought Research](https://www.forethought.org)'s corpus, falling back to
 open research when the corpus runs out.
 
-Six tracks plus cross-cutting metrics; **Track 2 (Specific Claim Recall) is
-fully wired in V1**, the other five tracks are stubbed with their grading
-plan in code comments.
+Designed for **fast iteration**: the default `smoke` tier runs the whole of
+Track 2 in ~25 seconds, billed against a Claude subscription via the
+`claude` CLI rather than API costs.
 
 ## Status
 
 | Track | Name                            | V1 status |
 | ----- | ------------------------------- | --------- |
 |   1   | Definition & Framework Recall   | stub      |
-|   2   | Specific Claim Recall           | **wired** |
+|   2   | Specific Claim Recall           | **wired** (5 smoke + 3 extended) |
 |   3   | Argument Reconstruction         | stub      |
 |   4   | Cross-Corpus Synthesis          | stub      |
 |   5   | Boundary Detection & Adversarial| stub      |
 |   6   | Open-Domain Research            | stub      |
 
 Cross-cutting:
-- **Citation faithfulness** (multi-stage pipeline) — implemented and used by
-  Track 2.
-- Atomic fact verification (FActScore-style) — V2.
-- Calibration / Brier — V2 (only if agents emit probabilities).
-- Trace quality — V2.
+- **Citation faithfulness** (4-stage pipeline) - implemented and used by Track 2.
+- Atomic fact verification, calibration / Brier, trace quality - V2.
 
 ## Setup
 
-Python 3.11+, [`uv`](https://github.com/astral-sh/uv) recommended.
+Python 3.11+, Claude Code CLI installed and authenticated (for subscription
+billing). Anthropic API key only needed if you opt out of subscription mode.
 
 ```bash
-uv venv
+uv venv                  # or python -m venv .venv
 uv pip install -e ".[dev]"
-```
 
-Set credentials:
+# subscription path (default): claude CLI authenticated via `claude` once
+which claude
 
-```bash
+# api fallback path:
 export ANTHROPIC_API_KEY=sk-...
 ```
 
@@ -54,72 +52,88 @@ extracted content (one JSON record per page, produced by `pnpm scrape`):
 export FORETHOUGHT_CONTENT_DIR=/path/to/forethoughtchat/data/content
 ```
 
-Each file in that directory matches the schema:
+## Tiers and the iteration loop
 
-```json
-{
-  "url": "https://www.forethought.org/research/...",
-  "category": "research",
-  "slug": "three-types-of-intelligence-explosion",
-  "title": "Three Types of Intelligence Explosion",
-  "authors": ["Tom Davidson", "Rose Hadshar", "William MacAskill"],
-  "topics": ["intelligence-explosion"],
-  "publishedAt": "2025-...",
-  "body": "<markdown>",
-  "text": "<plain-text>"
-}
-```
+Items have a `tier` field that controls when they run.
 
-Future: a pgvector + tsvector hybrid retrieval backend (per the design doc)
-will drop in behind the same `Corpus` interface.
+- **smoke** (default): the small failure-mode-diverse subset. Run on every
+  iteration of the agent. ~5 items per track, ~25-60s wall time.
+- **extended**: broader coverage with redundant items for averaging. Run
+  before merging meaningful changes. ~8-15 items per track.
+- **all**: everything in items/, including held-out items. Don't run this
+  in normal flow; it's the public + private set together.
+
+You won't usually want a "comprehensive 200-item" run - the failure modes
+this benchmark catches are mode-diverse, not item-count-driven. If you ever
+need to publish, grow each track to ~50 items at that point.
 
 ## Running Track 2
 
-The agent under test must be reachable as an HTTP service. forethought-bench
-ships an adapter for the forethoughtchat `/api/chat` SSE endpoint:
+In one shell, run the chat app:
 
 ```bash
-# In one shell, run the chat app at localhost:3000:
 cd /path/to/forethoughtchat && pnpm dev
+```
 
-# In another shell:
-inspect eval forethought_bench.tasks.claim_recall \
+In another shell, run the smoke benchmark:
+
+```bash
+inspect eval forethought_bench/tasks/claim_recall.py \
   -T base_url=http://localhost:3000 \
-  -T content_dir=$FORETHOUGHT_CONTENT_DIR
+  -T content_dir=$FORETHOUGHT_CONTENT_DIR \
+  --max-samples=5 \
+  --model anthropic/claude-haiku-4-5
 ```
 
-Run with held-out items (the private partition - keep these off public logs):
+`--max-samples=5` runs all 5 smoke items in parallel (each item still
+parallelizes its own citation checks via asyncio). Drop wall time from
+~70s to ~25s.
+
+The `--model` flag is required by Inspect for telemetry but isn't used by
+our solver (we hit the chat app's HTTP endpoint directly).
+
+Run extended tier (8 items, ~30s):
 
 ```bash
-inspect eval forethought_bench.tasks.claim_recall -T include_held_out=true
+inspect eval forethought_bench/tasks/claim_recall.py \
+  -T tier=extended --max-samples=8 ...
 ```
 
-Inspect AI logs land under `./logs/`; view them with:
+Render the report after a run:
 
 ```bash
-inspect view
+python scripts/render_report.py
+open report.html
 ```
 
-## What Track 2 grades
+## Cost and billing
 
-For each item the scorer emits a composite in [0, 1]:
+- **Default**: judge calls go through `claude -p` subprocess, billed against
+  your Claude Pro/Max subscription. Each call counts as ~1 message in your
+  rate limit; a Track 2 smoke run is ~15 messages.
+- **API fallback**: set `FOREBENCH_USE_API=1` to bill against
+  `ANTHROPIC_API_KEY`. ~3-5x faster (no Claude Code subprocess overhead) but
+  you pay per token.
+
+Per-call cost (notional, what API would charge):
+
+| Judge model | Cold cache | Warm cache | Use case |
+|---|---|---|---|
+| `opus` (default) | ~$0.10 | ~$0.025 | rigorous grading |
+| `haiku` | ~$0.04 | ~$0.012 | cheap regressions |
+
+## Composite score (Track 2)
 
 ```
-score = 0.5 * correctness
-      + 0.2 * hedge_preserved
-      + 0.3 * citation_faithfulness
+score = 0.5 * correctness          (numeric within tolerance, or verbal MATCH)
+      + 0.2 * hedge_preserved      (binary; vacuous when source had no hedges)
+      + 0.3 * citation_faithfulness (fraction of citations with verdict VALID)
 ```
 
-- **correctness** — for `claim_type=numeric`, value within `rtol`/`atol` of
-  `numeric_target`. For `verbal`, an LLM judge classifies the answer as
-  MATCH / PARTIAL / MISS against the item's accepted phrasings.
-- **hedge_preserved** — the agent did not strip source hedges (e.g.,
-  preserved "we estimate ~50%" rather than "Forethought says 50%"). Vacuously
-  satisfied when the source has no hedges.
-- **citation_faithfulness** — fraction of agent citations with verdict VALID
-  in the 4-stage pipeline. Per-citation breakdown
-  (valid / fabricated / real-but-unsupportive / partial) is in the score's
-  metadata.
+Failure-mode rollups in score metadata:
+- `hedge.missing_hedges` - which source hedges the agent stripped
+- `citation_faithfulness.{valid,fabricated,unsupportive,partial}` - per-verdict counts
+- `citation_checks` - per-citation rationale for each verdict
 
 ### Citation faithfulness pipeline
 
@@ -128,82 +142,47 @@ End-to-end LLM judging is intentionally **not** used for citations. The
 end-to-end judging and the most damaging trust failure for a research-grounded
 agent. Instead, four stages:
 
-1. Extract `(claim, citation)` pairs from agent output.
-2. Retrieve the cited document from the corpus by URL.
-3. Locate the quoted passage in the document (fuzzy match).
+1. Extract `(claim, citation)` pairs from agent output. For chat-app-shaped
+   agents this is deterministic (parse `[N]` markers + use sources event).
+2. Look up cited URL in the local corpus.
+3. Fuzzy-match the quoted passage inside the document at that URL.
 4. LLM judge: does the located passage support the claim?
 
-Verdicts:
-- **VALID** — passage found AND supports claim.
-- **FABRICATED** — URL not in corpus, OR passage not in cited URL's doc.
-- **REAL_BUT_UNSUPPORTIVE** — passage found but doesn't support the claim.
-- **PARTIAL** — supports part of the claim or supports it weakly.
+Per-citation verdict:
+- **valid** - passage found AND supports claim
+- **fabricated** - URL not in corpus, OR passage not in cited URL's doc
+- **real_but_unsupportive** - passage found but doesn't support the claim
+- **partial** - supports part of the claim or supports it weakly
 
-## Agent contract
+## Versioning and reproducibility
 
-The agent under test must emit (or be wrapped to emit) this structured shape:
+The benchmark records its own version + the agent + judge models in every
+eval log so you can tell whether a change in scores is real or just a bench
+change.
 
-```json
-{
-  "final_answer": "string",
-  "citations": [
-    {
-      "url": "string",
-      "title": "string",
-      "passage": "string|null",
-      "supports": "string"
-    }
-  ],
-  "confidence": "number 0..1 | null",
-  "search_queries": ["string"],
-  "retrieved_passages": [{"url": "...", "title": "...", "text": "..."}]
-}
-```
-
-Without `Citation.supports`, citation faithfulness can only verify existence
-(stages 2-3) and degrades to PARTIAL. Agents that emit prose with `[N]`
-markers are post-hoc extracted into this shape by
-`forethought_bench.agents.extractor` (an LLM call per item).
-
-## Item curation
-
-See [items/claim_recall/README.md](./items/claim_recall/README.md) for the
-Track 2 item template and curation rules. Each track has its own README.
-
-## Versioning
-
-The benchmark's value is reproducibility; reproducibility lives or dies on
-version tags. forethought-bench version-tags everything an eval depends on:
-
-- **Item version** (`Item.version`): bump when you change an item's question,
-  accepted answers, or numeric target.
-- **Benchmark version** (`forethought_bench._versions.BENCHMARK_VERSION`):
-  bump when item schema or scoring logic changes.
-- **Judge models** (`JUDGE_CLAUDE`, `JUDGE_OPENAI`, `JUDGE_OPEN_WEIGHT` in
-  `_versions.py`): pinned to exact build strings - never aliases. APIs shift
-  silently behind aliases.
-- **Extractor model** (`EXTRACTOR`): pinned likewise.
-- **Corpus snapshot date**: comes from the source `publishedAt` and the
-  scrape timestamp embedded in `data/index.json` of the corpus loader.
+- `Item.version` - per-item; bump when changing question, accepted answers,
+  or numeric target.
+- `BENCHMARK_VERSION` (in `_versions.py`) - bench-wide; bump when item schema
+  or scoring logic changes.
+- Judge models pinned in `_versions.py` for the API path; for Claude Code the
+  alias resolves at call time and is recorded in usage metadata.
 
 The model under test must NEVER equal a judge model (self-preference bias).
+The chat app is `claude-sonnet-4-6`; Track 2 defaults the judge to
+`claude-opus-4-7` (different family, more capable).
 
 ## Held-out partition and canary
 
 - ~20% of items per track should be marked `held_out: true` and kept out of
-  public eval logs and dashboards. Run with `-T include_held_out=true` only
-  when running the private test set.
-- forethought-bench's contamination-canary string is:
+  public eval logs. Run with `-T include_held_out=true` only for the private
+  test set. (Track 2 has none yet.)
+- forethought-bench's contamination-canary string:
 
   `forethought-bench:canary:b15c3a7e-2fc9-4a51-8d9c-9d2e0f4f0c62`
-
-  Embed it in any documentation or item file you want to detect in future
-  training-data contamination. Items themselves do not currently embed
-  per-item canaries; this is V1.5.
 
 ## License
 
 - Source code: Apache 2.0 (see [LICENSE](./LICENSE)).
 - Benchmark items in `/items/`: CC BY 4.0 (see [ITEMS_LICENSE](./ITEMS_LICENSE)).
 - Source passages quoted in items remain the IP of their authors and
-  Forethought Research; quotation for benchmarking is intended as fair use.
+  Forethought Research.

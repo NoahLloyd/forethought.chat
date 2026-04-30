@@ -2,12 +2,16 @@
   "id": "claim_recall_002",
   "track": "claim_recall",
   "version": 1,
+  "tier": "extended",
   "question": "According to Forethought's 'Three Types of Intelligence Explosion', what probability do the authors assign to the chip technology feedback loop alone being sufficient to sustain accelerating progress in an AI-technology IE?",
   "claim_type": "numeric",
   "numeric_target": {
     "value": 0.65,
     "unit": "probability",
-    "tolerance": {"rtol": 0.12, "atol": 0.05}
+    "tolerance": {
+      "rtol": 0.12,
+      "atol": 0.05
+    }
   },
   "accepted_phrasings": [
     "around 65%",
@@ -15,15 +19,28 @@
     "approximately 65 percent",
     "about 65%"
   ],
-  "hedge_terms": ["likely", "probably", "~"],
+  "hedge_terms": [
+    "likely",
+    "probably",
+    "~"
+  ],
   "expected_citation": {
     "url": "https://www.forethought.org/research/three-types-of-intelligence-explosion",
     "title": "Three Types of Intelligence Explosion",
-    "authors": ["Tom Davidson", "Rose Hadshar", "William MacAskill"]
+    "authors": [
+      "Tom Davidson",
+      "Rose Hadshar",
+      "William MacAskill"
+    ]
   },
   "source_passage": "An AI-technology IE would likely accelerate. The chip technology feedback loop *by itself* is probably enough to sustain accelerating progress (~65%).",
   "metadata": {
-    "topics": ["intelligence-explosion", "feedback-loops", "hardware", "forecasting"],
+    "topics": [
+      "intelligence-explosion",
+      "feedback-loops",
+      "hardware",
+      "forecasting"
+    ],
     "difficulty": "easy"
   }
 }

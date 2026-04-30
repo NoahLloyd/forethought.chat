@@ -1,24 +1,13 @@
 """Track 2: Specific Claim Recall.
 
-Per the design doc:
-  Numeric and named-forecast claims (Davidson's 50/65/80% feedback-loop
-  probabilities, ~5x geomean takeoff multiplier, etc.). Numeric tolerance for
-  numbers, LLM judge for verbal. Sub-set tests hedge preservation (agent must
-  not strip "we estimate ~50%" into "Forethought says 50%").
-
 Composite score per item:
   0.5 * correctness          (numeric within tolerance, or verbal MATCH)
   0.2 * hedge_preserved      (binary; only counts when source had hedges)
   0.3 * citation_faithfulness (fraction of citations with verdict VALID)
 
-Failure-mode-specific rollups (fabricated/unsupportive/missing-hedges) are
-reported separately so a single composite doesn't hide systematic errors.
-
-Judge configuration: defaults to a ClaudeCodeJudge using `--model=haiku`
-(claude-haiku-4-5-20251001), which is in a different model family than the
-chat app's claude-sonnet-4-6, satisfying the design rule "model under test
-must never equal a judge model." Use ClaudeJudge fallback if the `claude`
-CLI isn't installed (set FOREBENCH_USE_API=1 to force).
+Run patterns:
+  Smoke (fast iteration):     5 items, ~15-20s with --max-samples=5
+  Extended (broader coverage): 8 items, ~30s with --max-samples=8
 """
 
 from __future__ import annotations
@@ -30,6 +19,7 @@ from inspect_ai import Task, task
 from inspect_ai.scorer import Score, Target, mean, scorer
 from inspect_ai.solver import TaskState
 
+from forethought_bench._versions import BENCHMARK_VERSION
 from forethought_bench.agents import ForethoughtChatAgent
 from forethought_bench.corpus import Corpus
 from forethought_bench.judges import ClaudeJudge, Judge, default_judge
@@ -42,6 +32,7 @@ from forethought_bench.scoring import (
     score_verbal,
 )
 from forethought_bench.tasks._common import (
+    Tier,
     agent_solver,
     items_to_dataset,
     load_items_for_track,
@@ -79,6 +70,7 @@ def claim_recall_scorer(corpus: Corpus, judge: Judge):
             explanation=explanation,
             metadata={
                 "item_id": item.id,
+                "item_tier": item.tier,
                 "correctness": correctness,
                 "correctness_rationale": correctness_rationale,
                 "hedge": hedge.model_dump(),
@@ -106,9 +98,7 @@ async def _score_correctness(
 
 
 def _build_judge(judge_model: str) -> Judge:
-    """Build a Judge respecting FOREBENCH_USE_API for opt-out from CLI billing."""
     if os.environ.get("FOREBENCH_USE_API") == "1":
-        # Force API path; resolve alias to a pinned model id.
         resolved = {
             "haiku": "claude-haiku-4-5-20251001",
             "sonnet": "claude-sonnet-4-6",
@@ -123,18 +113,26 @@ def claim_recall(
     *,
     base_url: str = "http://localhost:3000",
     content_dir: str | None = None,
+    tier: Tier = "smoke",
     include_held_out: bool = False,
-    judge_model: str = "haiku",
+    judge_model: str = "opus",
 ) -> Task:
     """Track 2: Specific Claim Recall.
+
+    Default: tier="smoke" (5 items, ~15s with --max-samples=5).
 
     Run with:
       inspect eval forethought_bench/tasks/claim_recall.py \\
         -T base_url=http://localhost:3000 \\
-        -T content_dir=/path/to/forethoughtchat/data/content
+        -T content_dir=$FORETHOUGHT_CONTENT_DIR \\
+        --max-samples=5
 
-    Set FOREBENCH_USE_API=1 to force API billing instead of Claude Code
-    subscription billing.
+    Run extended (8 items):
+      inspect eval forethought_bench/tasks/claim_recall.py \\
+        -T tier=extended --max-samples=8
+
+    Set FOREBENCH_USE_API=1 to bill against the API key (faster, costs money)
+    instead of Claude Code subscription billing.
     """
     resolved = resolve_content_dir(content_dir)
     corpus = Corpus.from_directory(resolved)
@@ -142,14 +140,17 @@ def claim_recall(
     agent = ForethoughtChatAgent(base_url=base_url)
 
     items = load_items_for_track(
-        TrackName.CLAIM_RECALL, include_held_out=include_held_out
+        TrackName.CLAIM_RECALL, tier=tier, include_held_out=include_held_out
     )
     metadata: dict[str, Any] = {
         "track": "claim_recall",
+        "tier": tier,
+        "benchmark_version": BENCHMARK_VERSION,
         "n_items": len(items),
         "corpus_records": len(corpus),
         "agent": agent.name,
         "judge": judge.name,
+        "judge_model_alias": judge_model,
     }
     return Task(
         dataset=items_to_dataset(items),
