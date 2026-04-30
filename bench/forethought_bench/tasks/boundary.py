@@ -27,7 +27,6 @@ from inspect_ai.scorer import Score, Target, mean, scorer
 from inspect_ai.solver import TaskState
 
 from forethought_bench._versions import BENCHMARK_VERSION
-from forethought_bench.agents import ForethoughtChatAgent
 from forethought_bench.corpus import Corpus
 from forethought_bench.judges import ClaudeJudge, Judge, default_judge
 from forethought_bench.schema import AgentOutput, Item, TrackName
@@ -39,6 +38,7 @@ from forethought_bench.scoring import (
 from forethought_bench.tasks._common import (
     Tier,
     agent_solver,
+    build_agent,
     items_to_dataset,
     load_items_for_track,
     resolve_content_dir,
@@ -110,7 +110,7 @@ def boundary(
     resolved = resolve_content_dir(content_dir)
     corpus = Corpus.from_directory(resolved)
     judge = _build_judge(judge_model)
-    agent = ForethoughtChatAgent(base_url=base_url)
+    agent = build_agent(base_url)
 
     items = load_items_for_track(
         TrackName.BOUNDARY, tier=tier, include_held_out=include_held_out
