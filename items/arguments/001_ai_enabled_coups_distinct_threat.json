@@ -1,0 +1,21 @@
+{
+  "id": "arguments_001_ai_coups_distinct",
+  "track": "arguments",
+  "version": 1,
+  "tier": "smoke",
+  "question": "Reconstruct Davidson, Finnveden, and Hadshar's argument for why AI-enabled coups are a categorically distinct threat from historical military coups. State the key premises and the conclusion.",
+  "required_elements": [
+    "AI can replace human workers with systems that are singularly loyal to one person or small group",
+    "Historical coups required gaining buy-in from human military personnel loyal to democratic institutions",
+    "Military automation of fully autonomous AI systems could eliminate the need for human support from other soldiers",
+    "A small group or single person could execute a coup using only AI systems without any human support",
+    "Therefore AI-enabled coups are a categorically new threat distinct from historical military coups"
+  ],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/ai-enabled-coups-how-a-small-group-could-use-ai-to-seize-power",
+    "title": "AI-Enabled Coups: How a Small Group Could Use AI to Seize Power",
+    "authors": ["Tom Davidson", "Lukas Finnveden", "Rose Hadshar"]
+  },
+  "source_passage": "Advanced AI will change this fundamentally, by making it technologically feasible to replace human workers with AI systems which are singularly loyal to just one person or small group. Today, staging a coup requires convincing human soldiers to cooperate. Mature democracies rarely experience coups from the military, or even coup attempts - because soldiers remain loyal to democratic institutions, and expect others to do the same. Absent countermeasures, military automation could fundamentally change this dynamic, potentially allowing a single person to execute a coup without any support from other humans, using only AI systems.",
+  "metadata": {"topics": ["coups", "ai-power-concentration"], "difficulty": "medium"}
+}

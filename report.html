@@ -1,5 +1,5 @@
 <!doctype html>
-<html><head><meta charset="utf-8"><title>forethought-bench - Track 2</title>
+<html><head><meta charset="utf-8"><title>forethought-bench - aggregate</title>
 <style>
   :root {
     --bg: #fbfaf4; --ink: #2f2a26; --coral: #ff6f43;
@@ -11,253 +11,40 @@
     max-width: 1080px; margin: 32px auto; padding: 0 24px; }
   h1 { font-size: 28px; margin: 0 0 8px; }
   h2 { font-size: 20px; margin: 28px 0 8px; border-bottom: 1px solid var(--rule); padding-bottom: 6px; }
-  h3 { font-size: 16px; margin: 16px 0 6px; }
-  .meta { color: #6b6358; font-size: 13px; }
-  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
-  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
-  th { font-weight: 600; background: rgba(0,0,0,0.02); }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; font-size: 13px; }
+  th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--rule); vertical-align: top; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; }
-  .badge { display: inline-block; padding: 1px 8px; border-radius: 10px; font-size: 12px; font-weight: 600;
-           border: 1px solid currentColor; }
-  .badge.ok { color: var(--ok); }
-  .badge.warn { color: var(--warn); }
-  .badge.bad { color: var(--bad); }
-  .badge.neutral { color: #888; }
+  th { background: rgba(0,0,0,0.03); }
   .composite-ok { color: var(--ok); font-weight: 600; }
   .composite-warn { color: var(--warn); font-weight: 600; }
   .composite-bad { color: var(--bad); font-weight: 600; }
-  .drill { border: 1px solid var(--rule); border-radius: 6px; margin: 10px 0; padding: 10px 14px; background: white; }
-  .drill summary { cursor: pointer; font-size: 14px; }
-  .drill .body { padding: 8px 0 0; }
-  .drill pre.answer { background: var(--code); padding: 12px; border-radius: 4px; white-space: pre-wrap; font-size: 13px; max-height: 320px; overflow: auto; }
-  .drill .citations { font-size: 13px; }
-  .drill .q { font-size: 14px; }
-  .bad { color: var(--bad); }
-  .pipeline { background: white; border: 1px solid var(--rule); padding: 12px 16px; border-radius: 6px; }
-  .pipeline ol { margin: 6px 0; padding-left: 22px; }
+  .meta { color: #6b6358; font-size: 13px; }
+  .kpi { display: inline-block; padding: 8px 12px; background: white; border: 1px solid var(--rule);
+          border-radius: 6px; margin-right: 8px; font-size: 14px; }
+  .track { margin: 14px 0; padding: 8px 14px; background: white; border: 1px solid var(--rule);
+            border-radius: 6px; }
+  .track summary { cursor: pointer; }
   code { background: var(--code); padding: 1px 5px; border-radius: 3px; font-size: 12.5px; }
-  .kpi-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 12px 0; }
-  .kpi { background: white; border: 1px solid var(--rule); border-radius: 6px; padding: 12px 14px; }
-  .kpi .label { color: #6b6358; font-size: 12px; text-transform: uppercase; letter-spacing: 0.05em; }
-  .kpi .value { font-size: 22px; font-weight: 600; margin-top: 4px; }
 </style></head><body>
 
-<h1>forethought-bench - Track 2 (Specific Claim Recall)</h1>
-<p class="meta">Run <code>nXKtNux5nmvnCD2heBUfD2</code> &middot; status <strong>success</strong> &middot; 5 items &middot; tier <code>smoke</code>
-&middot; bench v<code>0.2.0</code> &middot; wall <strong>27</strong>s</p>
-<p class="meta">Agent <code>forethought-chat:http://localhost:3000</code> &middot; judge <code>claude-code:opus</code> &middot; corpus <code>None</code> records</p>
+<h1>forethought-bench - Full smoke benchmark</h1>
+<p class="meta">Bench v<code>0.2.0</code> &middot; agent <code>forethought-chat:http://localhost:3000</code>
+&middot; judge <code>claude-code:opus</code></p>
 
-<h2>What this evaluates</h2>
-<div class="pipeline">
-  <p>Track 2 grades whether the agent under test reproduces specific numeric / named claims from named Forethought papers,
-  with <strong>hedge preservation</strong> (don't strip "<code>~50%</code>" into "50%") and a
-  <strong>multi-stage citation faithfulness pipeline</strong>. End-to-end LLM judging is intentionally not used for citations:
-  the "real paper, but doesn't actually support the claim" failure is invisible to end-to-end judging and the most damaging trust failure for a research-grounded agent.</p>
-  <p><strong>Composite score per item:</strong></p>
-  <pre>score = 0.5 &middot; correctness            (numeric within tolerance, or verbal MATCH)
-      + 0.2 &middot; hedge_preserved        (binary; vacuous when source had no hedges)
-      + 0.3 &middot; citation_faithfulness  (fraction of citations with verdict VALID)</pre>
-  <p><strong>Citation faithfulness (4 stages):</strong></p>
-  <ol>
-    <li>Extract <code>(claim, citation)</code> pairs from agent output.</li>
-    <li>Look up cited URL in the local corpus.</li>
-    <li>Fuzzy-match the quoted passage inside the document at that URL.</li>
-    <li>Judge: does the located passage support the claim?</li>
-  </ol>
-  <p>Per-citation verdict:
-    <span class="badge ok">valid</span>
-    <span class="badge bad">fabricated</span>
-    <span class="badge bad">real_but_unsupportive</span>
-    <span class="badge warn">partial</span>
-  </p>
+<div>
+  <span class="kpi"><strong>Total items</strong>: 29</span>
+  <span class="kpi"><strong>Wall</strong>: 531s</span>
+  <span class="kpi"><strong>Overall composite</strong>:
+    <span class="composite-warn">0.612</span></span>
 </div>
 
-<h2>Aggregate</h2>
-<div class="kpi-grid">
-  <div class="kpi"><div class="label">Composite (mean)</div><div class="value composite-bad">0.520</div></div>
-  <div class="kpi"><div class="label">Correctness rate</div><div class="value">60%</div></div>
-  <div class="kpi"><div class="label">Hedge preservation</div><div class="value">80%</div></div>
-  <div class="kpi"><div class="label">Citation faithfulness</div><div class="value">20%</div></div>
-</div>
-
-<h3>Citation verdict breakdown</h3>
+<h2>Per-track</h2>
 <table>
-  <thead><tr><th>Verdict</th><th class="num">Count</th><th class="num">Share</th></tr></thead>
-  <tbody>
-    <tr><td><span class="badge ok">valid</span></td><td class="num">2</td><td class="num">14%</td></tr>
-    <tr><td><span class="badge bad">fabricated</span></td><td class="num">0</td><td class="num">0%</td></tr>
-    <tr><td><span class="badge bad">real_but_unsupportive</span></td><td class="num">11</td><td class="num">79%</td></tr>
-    <tr><td><span class="badge warn">partial</span></td><td class="num">1</td><td class="num">7%</td></tr>
-    <tr><td><strong>total</strong></td><td class="num"><strong>14</strong></td><td></td></tr>
-  </tbody>
-</table>
-
-<h2>Per-item results</h2>
-<table>
-  <thead><tr><th>ID</th><th>Question</th><th class="num">Composite</th><th class="num">Correctness</th><th>Hedges</th><th class="num">Citations</th><th></th></tr></thead>
-  <tbody><tr><td>claim_recall_001</td><td>In Forethought&#x27;s &#x27;Three Types of Intelligence Explosion&#x27; (Davidson, Hadshar, MacAskill), w...</td><td class="num composite-warn">0.70</td><td class="num">1.00</td><td>OK</td><td class="num">0/3</td><td><a href="#item-claim_recall_001">drill</a></td></tr><tr><td>claim_recall_004</td><td>In Forethought&#x27;s &#x27;How quick and big would a software intelligence explosion be?&#x27; (Davidson...</td><td class="num composite-bad">0.50</td><td class="num">0.00</td><td>OK</td><td class="num">2/2</td><td><a href="#item-claim_recall_004">drill</a></td></tr><tr><td>claim_recall_006</td><td>According to Forethought&#x27;s &#x27;How quick and big would a software intelligence explosion be?&#x27;...</td><td class="num composite-warn">0.70</td><td class="num">1.00</td><td>OK</td><td class="num">0/6</td><td><a href="#item-claim_recall_006">drill</a></td></tr><tr><td>claim_recall_007</td><td>In Forethought&#x27;s &#x27;AGI and Lock-in&#x27; paper (Lukas Finnveden), what subjective probability do...</td><td class="num composite-bad">0.50</td><td class="num">1.00</td><td>MISSING [&#x27;we think&#x27;]</td><td class="num">0/2</td><td><a href="#item-claim_recall_007">drill</a></td></tr><tr><td>claim_recall_008</td><td>In &#x27;Could one country outgrow the rest of the world?&#x27; (Tom Davidson), by what multiple did...</td><td class="num composite-bad">0.20</td><td class="num">0.00</td><td>OK</td><td class="num">0/1</td><td><a href="#item-claim_recall_008">drill</a></td></tr></tbody>
+  <thead><tr><th>Track</th><th>Tier</th><th class="num">n</th><th class="num">Composite</th><th class="num">Wall (s)</th></tr></thead>
+  <tbody><tr><td>claim_recall</td><td>smoke</td><td class='num'>5</td><td class='num composite-bad'>0.520</td><td class='num'>27</td></tr><tr><td>definitions</td><td>smoke</td><td class='num'>6</td><td class='num composite-warn'>0.679</td><td class='num'>72</td></tr><tr><td>arguments</td><td>smoke</td><td class='num'>4</td><td class='num composite-warn'>0.623</td><td class='num'>106</td></tr><tr><td>synthesis</td><td>smoke</td><td class='num'>3</td><td class='num composite-warn'>0.803</td><td class='num'>128</td></tr><tr><td>boundary</td><td>smoke</td><td class='num'>8</td><td class='num composite-bad'>0.500</td><td class='num'>65</td></tr><tr><td>open_research</td><td>smoke</td><td class='num'>3</td><td class='num composite-warn'>0.729</td><td class='num'>133</td></tr></tbody>
 </table>
 
 <h2>Drill-down</h2>
-
-<details id="item-claim_recall_001" class="drill">
-  <summary><strong>claim_recall_001</strong> - composite
-    <span class="composite-warn">0.70</span>
-    | correctness 1.00
-    | hedges OK
-    | citations 0/3 valid</summary>
-  <div class="body">
-    <p class="q"><strong>Question.</strong> In Forethought&#x27;s &#x27;Three Types of Intelligence Explosion&#x27; (Davidson, Hadshar, MacAskill), what probability do the authors give to the software feedback loop alone being sufficient to sustain accelerating progress in a software intelligence explosion?</p>
-    <p><strong>Target.</strong> <code>around 50%</code></p>
-    <details><summary>Agent answer (1473 chars)</summary>
-      <pre class="answer">The answer is clearly stated in the paper. According to *Three Types of Intelligence Explosion* (Davidson, Hadshar, MacAskill, 2025-03-17), the authors assign **~50% probability** to the software feedback loop alone being sufficient to sustain accelerating progress.
-
-Here is the exact language from the piece:
-
-&gt; &quot;A software IE might well accelerate over time, because the software feedback loop *by itself* might well be enough to sustain accelerating progress (~50% likely).&quot; [6]
-
-The authors ground this estimate in empirical data on AI efficiency gains — specifically, Epoch research estimating that doubling research inputs leads to roughly 0.8 to 3.5 doublings of compute efficiency across several domains — as well as their own modelling, which estimates approximately 1.2 doublings of output for every doubling of cognitive input (range: 0.4 to 3.6) [6].
-
-For comparison, the paper places the software-only case as the most uncertain of the three feedback loops they analyse. The chip *technology* loop alone is rated at ~65%, and the chip *production* loop alone at ~80%. When all loops are combined in a full-stack intelligence explosion, the probability of accelerating progress rises to ~90% [1, 2].
-
-So the ~50% figure reflects genuine uncertainty: the authors think a software intelligence explosion *accelerating* is roughly a coin-flip, not a near-certainty — and that confidence grows substantially once hardware feedback loops are added into the picture.</pre></details>
-    <p><strong>Correctness rationale.</strong> extracted=0.5, target=0.5, |diff|=0, bound=0.075; &#x27;~50%&#x27; -&gt; 0.5</p>
-    
-    <p><strong>Citation breakdown.</strong> 0 valid /
-       0 fabricated / 2 real-but-unsupportive /
-       1 partial (of 3 total)</p>
-    <table class="citations">
-      <thead><tr><th>Verdict</th><th>Parsed claim</th><th>Support rationale</th></tr></thead>
-      <tbody><tr><td><span class="badge warn">partial</span></td><td>Here is the exact language from the piece:
-
-&gt; &quot;A software IE might well accelerate over time, because the software feedback loop *by itself* might well be enough to sustain accelerating progress (~50% likely).&quot; 
-
-The authors ground this est</td><td>PARTIAL
-
-The passage supports the ~50% likelihood claim about a software IE accelerating and mentions that doubling research inputs leads to more than a doubling of efficiency, but it does not contain the specific numbers cited (0.8 to 3.5 doublings, or 1.2 doublings with range 0.4 to 3.6) attributed to Epoch research and the authors&#x27; modelling.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>When all loops are combined in a full-stack intelligence explosion, the probability of accelerating progress rises to ~90% .</td><td>UNSUPPORTIVE
-The passage discusses probabilities of ~50% (software IE) and ~65% (chip technology feedback loop) for sustaining accelerating progress, but does not mention a ~90% probability for a full-stack intelligence explosion combining all loops.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>When all loops are combined in a full-stack intelligence explosion, the probability of accelerating progress rises to ~90% .</td><td>UNSUPPORTIVE
-The passage discusses individual feedback loops (software at ~50% and chip technology at ~65%) but does not mention a combined &quot;full-stack intelligence explosion&quot; or a ~90% probability.</td></tr></tbody>
-    </table>
-  </div>
-</details>
-
-<details id="item-claim_recall_004" class="drill">
-  <summary><strong>claim_recall_004</strong> - composite
-    <span class="composite-bad">0.50</span>
-    | correctness 0.00
-    | hedges OK
-    | citations 2/2 valid</summary>
-  <div class="body">
-    <p class="q"><strong>Question.</strong> In Forethought&#x27;s &#x27;How quick and big would a software intelligence explosion be?&#x27; (Davidson &amp; Houlden), what was the geometric mean of researcher estimates of the total speed-up from ASARA?</p>
-    <p><strong>Target.</strong> <code>5x</code></p>
-    <details><summary>Agent answer (1243 chars)</summary>
-      <pre class="answer">The retrieved excerpts do not include an explicit statement of the geometric mean of researcher estimates of the total speed-up from ASARA. The paper&#x27;s table [2] reports the survey-based estimates separately — **10X** (when researchers were asked directly about total gain) and **28X** (when asked separately about different sources of speed-up) — but no single geometric mean figure across all researcher estimates appears in the excerpts returned.
-
-It&#x27;s possible the paper does report a composite geometric mean somewhere in the text (e.g., combining the 10X and 28X figures would yield a geometric mean of roughly **17X**, but that is my own arithmetic, not a number I can attribute to the paper). The corpus excerpts available to me do not contain that specific reported figure, so I cannot confirm it with a citation.
-
-If you have access to the full paper at https://www.forethought.org/research/how-quick-and-big-would-a-software-intelligence-explosion-be, the relevant section to check is &quot;Initial speed-up of software progress from deploying ASARA,&quot; where the survey methodology and the two direct estimates (10X and 28X) are discussed [2]. The geometric mean, if reported, would likely appear in the surrounding prose of that section.</pre></details>
-    <p><strong>Correctness rationale.</strong> extracted=10.0, target=5.0, |diff|=5, bound=0.5; &#x27;10X&#x27; -&gt; 10.0x</p>
-    
-    <p><strong>Citation breakdown.</strong> 2 valid /
-       0 fabricated / 0 real-but-unsupportive /
-       0 partial (of 2 total)</p>
-    <table class="citations">
-      <thead><tr><th>Verdict</th><th>Parsed claim</th><th>Support rationale</th></tr></thead>
-      <tbody><tr><td><span class="badge ok">valid</span></td><td>The paper&#x27;s table  reports the survey-based estimates separately — **10X** (when researchers were asked directly about total gain) and **28X** (when asked separately about different sources of speed-up) — but no single geometric mean figure</td><td>SUPPORTS
-
-The passage shows the table with &quot;10X&quot; for the direct-total-gain method and begins the row for asking separately about different sources, consistent with the claim&#x27;s reported 10X and 28X figures presented as separate survey-based estimates.</td></tr><tr><td><span class="badge ok">valid</span></td><td>If you have access to the full paper at https://www.forethought.org/research/how-quick-and-big-would-a-software-intelligence-explosion-be, the relevant section to check is &quot;Initial speed-up of software progress from deploying ASARA,&quot; where </td><td>SUPPORTS
-The passage shows a table from the relevant section with the survey methodology and a 10X estimate, and the truncation indicates a second estimate follows (consistent with the claimed 28X). This directly supports the claim about the section&#x27;s content.</td></tr></tbody>
-    </table>
-  </div>
-</details>
-
-<details id="item-claim_recall_006" class="drill">
-  <summary><strong>claim_recall_006</strong> - composite
-    <span class="composite-warn">0.70</span>
-    | correctness 1.00
-    | hedges OK
-    | citations 0/6 valid</summary>
-  <div class="body">
-    <p class="q"><strong>Question.</strong> According to Forethought&#x27;s &#x27;How quick and big would a software intelligence explosion be?&#x27; paper, what probability do the authors assign to the software intelligence explosion compressing more than 3 years of AI progress into less than 1 year?</p>
-    <p><strong>Target.</strong> <code>around 60%</code></p>
-    <details><summary>Agent answer (1892 chars)</summary>
-      <pre class="answer">The answer is clearly stated in the paper. According to Davidson and Houlden&#x27;s *How quick and big would a software intelligence explosion be?* (2025-08-05), the authors assign a **~60% probability** to the software intelligence explosion compressing more than 3 years of AI progress into less than 1 year [1].
-
-They pair this with a second, more extreme threshold: they consider it **only ~20% likely** that the explosion would compress more than 10 years of progress into less than 1 year [1]. The abstract of the paper captures the intuition neatly: &quot;AI progress could easily be 3X faster, might be 10X faster, but won&#x27;t be 30X faster — because at that speed we&#x27;d quickly hit limits on how good software can get&quot; [7].
-
-Importantly, these figures refer specifically to *software*-driven progress — that is, progress achieved solely through algorithmic improvements, holding compute constant. The authors note that if compute continues to scale during this period (as they consider likely), that would drive *additional* progress on top [1, 2].
-
-Their overall framing is deliberately intermediate: the analysis pushes back against both hard sceptics of intelligence explosion dynamics and those who anticipate extremely rapid, sustained capability jumps, landing instead on &quot;a significant additional acceleration at just the time when AI systems are surpassing top humans in broad areas of science and engineering&quot; [1].
-
-If you&#x27;re interested in digging deeper, you might want to look at how they handle the question of what slows or stops the explosion — the companion pieces on [compute bottlenecks](https://www.forethought.org/research/will-compute-bottlenecks-prevent-a-software-intelligence-explosion) and [retraining costs](https://www.forethought.org/research/will-the-need-to-retrain-ai-models) are directly relevant to why the upper tail (&gt;10 years compressed) is considered unlikely.</pre></details>
-    <p><strong>Correctness rationale.</strong> extracted=0.6, target=0.6, |diff|=0, bound=0.072; &#x27;~60%&#x27; -&gt; 0.6</p>
-    
-    <p><strong>Citation breakdown.</strong> 0 valid /
-       0 fabricated / 6 real-but-unsupportive /
-       0 partial (of 6 total)</p>
-    <table class="citations">
-      <thead><tr><th>Verdict</th><th>Parsed claim</th><th>Support rationale</th></tr></thead>
-      <tbody><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>According to Davidson and Houlden&#x27;s *How quick and big would a software intelligence explosion be?* (2025-08-05), the authors assign a **~60% probability** to the software intelligence explosion compressing more than 3 years of AI progress </td><td>UNSUPPORTIVE
-The cited passage only introduces the paper&#x27;s research questions about the speed and extent of a software intelligence explosion; it contains no probability estimate, no &quot;60%&quot; figure, and no claim about compressing 3 years of progress into less than 1 year.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>They pair this with a second, more extreme threshold: they consider it **only ~20% likely** that the explosion would compress more than 10 years of progress into less than 1 year .</td><td>UNSUPPORTIVE
-The cited passage is only a generic introduction stating that the paper evaluates how dramatic the software intelligence explosion will be; it contains no probability estimate or threshold about compressing 10 years of progress into less than 1 year.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>The abstract of the paper captures the intuition neatly: &quot;AI progress could easily be 3X faster, might be 10X faster, but won&#x27;t be 30X faster — because at that speed we&#x27;d quickly hit limits on how good software can get&quot; .</td><td>UNSUPPORTIVE
-The cited passage is the abstract framing the paper&#x27;s modeling question, but it contains none of the specific claims (3X, 10X, 30X speedups, or limits on software quality) attributed to it in the claim.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>The authors note that if compute continues to scale during this period (as they consider likely), that would drive *additional* progress on top .</td><td>UNSUPPORTIVE
-The cited passage only introduces the paper&#x27;s general aim of evaluating a software intelligence explosion and says nothing about compute scaling or additional progress driven by it.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>The authors note that if compute continues to scale during this period (as they consider likely), that would drive *additional* progress on top .</td><td>UNSUPPORTIVE
-The cited passage discusses retraining costs and training runs becoming quicker during an intelligence explosion, not anything about compute scaling driving additional progress on top of other gains. The passage does not support the claim.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>Their overall framing is deliberately intermediate: the analysis pushes back against both hard sceptics of intelligence explosion dynamics and those who anticipate extremely rapid, sustained capability jumps, landing instead on &quot;a significa</td><td>UNSUPPORTIVE
-The cited passage merely introduces that the paper evaluates how dramatic the software intelligence explosion will be; it does not contain the &quot;significant additional acceleration&quot; framing or push back against either sceptics or rapid-takeoff proponents.</td></tr></tbody>
-    </table>
-  </div>
-</details>
-
-<details id="item-claim_recall_007" class="drill">
-  <summary><strong>claim_recall_007</strong> - composite
-    <span class="composite-bad">0.50</span>
-    | correctness 1.00
-    | hedges STRIPPED
-    | citations 0/2 valid</summary>
-  <div class="body">
-    <p class="q"><strong>Question.</strong> In Forethought&#x27;s &#x27;AGI and Lock-in&#x27; paper (Lukas Finnveden), what subjective probability do the authors say the feasibility of a trillion-year stable society is worth, at minimum?</p>
-    <p><strong>Target.</strong> <code>at least 20%</code></p>
-    <details><summary>Agent answer (731 chars)</summary>
-      <pre class="answer">The answer is right there in the paper. The authors conclude that the arguments &quot;fairly robustly point towards [trillion-year stable societies] being at least plausibly possible,&quot; and that their feasibility is worth **at least 20% subjective probability** [1].
-
-This figure is offered even after the authors acknowledge the additional challenges that come with such extreme timescales — particularly the risk of encountering alien civilizations, the need for some degree of technological progress to enable space travel (to outlast Earth&#x27;s lifespan), and genuine uncertainty about long-run physical events given that the universe has only existed for 13 billion years and we&#x27;ve studied it scientifically for only a few hundred [1].</pre></details>
-    <p><strong>Correctness rationale.</strong> extracted=0.2, target=0.2, |diff|=0, bound=0.03; &#x27;20%&#x27; -&gt; 0.2</p>
-    <p class="bad"><strong>Hedge stripped.</strong> missing: <code>[&#x27;we think&#x27;]</code></p>
-    <p><strong>Citation breakdown.</strong> 0 valid /
-       0 fabricated / 2 real-but-unsupportive /
-       0 partial (of 2 total)</p>
-    <table class="citations">
-      <thead><tr><th>Verdict</th><th>Parsed claim</th><th>Support rationale</th></tr></thead>
-      <tbody><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>The authors conclude that the arguments &quot;fairly robustly point towards [trillion-year stable societies] being at least plausibly possible,&quot; and that their feasibility is worth **at least 20% subjective probability** .</td><td>UNSUPPORTIVE
-The cited passage discusses the relative solidity of certain summary components (0.1, 0.2, 0.3) regarding AI value stability, but contains no statement about the overall arguments being &quot;fairly robustly&quot; plausible nor any mention of a 20% subjective probability threshold.</td></tr><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>This figure is offered even after the authors acknowledge the additional challenges that come with such extreme timescales — particularly the risk of encountering alien civilizations, the need for some degree of technological progress to en</td><td>UNSUPPORTIVE
-The cited passage discusses the stability of AI values and components of an argument summary, with no mention of alien civilizations, space travel, Earth&#x27;s lifespan, or the universe&#x27;s age. It does not support the claim.</td></tr></tbody>
-    </table>
-  </div>
-</details>
-
-<details id="item-claim_recall_008" class="drill">
-  <summary><strong>claim_recall_008</strong> - composite
-    <span class="composite-bad">0.20</span>
-    | correctness 0.00
-    | hedges OK
-    | citations 0/1 valid</summary>
-  <div class="body">
-    <p class="q"><strong>Question.</strong> In &#x27;Could one country outgrow the rest of the world?&#x27; (Tom Davidson), by what multiple did Britain&#x27;s share of world GDP increase during the industrial revolution, according to the analogy the paper draws?</p>
-    <p><strong>Target.</strong> <code>8x</code></p>
-    <details><summary>Agent answer (182 chars)</summary>
-      <pre class="answer">The answer is right there in the paper. According to the analogy Davidson draws, Britain&#x27;s share of world GDP increased **eightfold** — from **1% to 8%** — between 1500 and 1900 [1].</pre></details>
-    <p><strong>Correctness rationale.</strong> extracted=1.0, target=8.0, |diff|=7, bound=0.8; &#x27;1%&#x27; -&gt; 1.0</p>
-    
-    <p><strong>Citation breakdown.</strong> 0 valid /
-       0 fabricated / 1 real-but-unsupportive /
-       0 partial (of 1 total)</p>
-    <table class="citations">
-      <thead><tr><th>Verdict</th><th>Parsed claim</th><th>Support rationale</th></tr></thead>
-      <tbody><tr><td><span class="badge bad">real_but_unsupportive</span></td><td>According to the analogy Davidson draws, Britain&#x27;s share of world GDP increased **eightfold** — from **1% to 8%** — between 1500 and 1900 .</td><td>UNSUPPORTIVE
-The cited passage discusses a hypothetical about the US share of world GDP and trading blocs, with no mention of Britain, the years 1500-1900, or an eightfold increase from 1% to 8%.</td></tr></tbody>
-    </table>
-  </div>
-</details>
-
+<details open class='track'><summary><strong>claim_recall</strong> (n=5, composite <span class='composite-bad'>0.520</span>)</summary><table><thead><tr><th>ID</th><th>Question</th><th class='num'>Composite</th><th>Highlights</th></tr></thead><tbody><tr><td>claim_recall_001</td><td>In Forethought&#x27;s &#x27;Three Types of Intelligence Explosion&#x27; (Davidson, Hadshar, Mac...</td><td class='num composite-warn'>0.80</td><td>correct=1.0, hedge_preserved=True, valid_cit=2/6</td></tr><tr><td>claim_recall_004</td><td>In Forethought&#x27;s &#x27;How quick and big would a software intelligence explosion be?&#x27;...</td><td class='num composite-bad'>0.20</td><td>correct=0.0, hedge_preserved=True, valid_cit=0/3</td></tr><tr><td>claim_recall_006</td><td>According to Forethought&#x27;s &#x27;How quick and big would a software intelligence expl...</td><td class='num composite-warn'>0.70</td><td>correct=1.0, hedge_preserved=True, valid_cit=0/4</td></tr><tr><td>claim_recall_007</td><td>In Forethought&#x27;s &#x27;AGI and Lock-in&#x27; paper (Lukas Finnveden), what subjective prob...</td><td class='num composite-bad'>0.20</td><td>correct=0.0, hedge_preserved=True, valid_cit=0/3</td></tr><tr><td>claim_recall_008</td><td>In &#x27;Could one country outgrow the rest of the world?&#x27; (Tom Davidson), by what mu...</td><td class='num composite-warn'>0.70</td><td>correct=1.0, hedge_preserved=True, valid_cit=0/2</td></tr></tbody></table></details><details open class='track'><summary><strong>definitions</strong> (n=6, composite <span class='composite-warn'>0.679</span>)</summary><table><thead><tr><th>ID</th><th>Question</th><th class='num'>Composite</th><th>Highlights</th></tr></thead><tbody><tr><td>definitions_001_viatopia</td><td>In Forethought&#x27;s framework, what is &#x27;viatopia&#x27;?...</td><td class='num composite-warn'>0.66</td><td>verbal=MATCH, valid_cit=1/7</td></tr><tr><td>definitions_002_asara</td><td>What does ASARA stand for in Forethought&#x27;s research, and what does it refer to?...</td><td class='num composite-warn'>0.84</td><td>verbal=MATCH, valid_cit=3/5</td></tr><tr><td>definitions_003_ai_character</td><td>What does Forethought mean by &#x27;AI character&#x27; in MacAskill and Davidson&#x27;s work?...</td><td class='num composite-warn'>0.78</td><td>verbal=MATCH, valid_cit=4/9</td></tr><tr><td>definitions_004_three_ie_types</td><td>What are the three types of intelligence explosion that Davidson, Hadshar, and M...</td><td class='num composite-warn'>0.73</td><td>verbal=MATCH, valid_cit=6/19</td></tr><tr><td>definitions_005_lock_in_mechanisms</td><td>In MacAskill and Assadi&#x27;s &#x27;Beyond Existential Risk&#x27;, what are the most plausible...</td><td class='num composite-bad'>0.38</td><td>verbal=PARTIAL, valid_cit=2/10</td></tr><tr><td>definitions_006_ai_enabled_coup</td><td>How does Davidson, Finnveden, and Hadshar define an &#x27;AI-enabled coup&#x27;, and what ...</td><td class='num composite-warn'>0.69</td><td>verbal=MATCH, valid_cit=3/13</td></tr></tbody></table></details><details open class='track'><summary><strong>arguments</strong> (n=4, composite <span class='composite-warn'>0.623</span>)</summary><table><thead><tr><th>ID</th><th>Question</th><th class='num'>Composite</th><th>Highlights</th></tr></thead><tbody><tr><td>arguments_001_ai_coups_distinct</td><td>Reconstruct Davidson, Finnveden, and Hadshar&#x27;s argument for why AI-enabled coups...</td><td class='num composite-warn'>0.63</td><td>elements_present=60%, valid_cit=4/16</td></tr><tr><td>arguments_002_lock_in_mechanisms</td><td>Reconstruct Finnveden, Riedel, and Shulman&#x27;s argument for how AGI enables lock-i...</td><td class='num composite-bad'>0.50</td><td>elements_present=50%, valid_cit=2/16</td></tr><tr><td>arguments_003_software_ie_acceleration</td><td>Reconstruct the &#x27;Three Types of Intelligence Explosion&#x27; argument for why a softw...</td><td class='num composite-warn'>0.69</td><td>elements_present=83%, valid_cit=4/24</td></tr><tr><td>arguments_004_country_outgrowth</td><td>Reconstruct Davidson&#x27;s argument in &#x27;Could one country outgrow the rest of the wo...</td><td class='num composite-warn'>0.66</td><td>elements_present=83%, valid_cit=5/19</td></tr></tbody></table></details><details open class='track'><summary><strong>synthesis</strong> (n=3, composite <span class='composite-warn'>0.803</span>)</summary><table><thead><tr><th>ID</th><th>Question</th><th class='num'>Composite</th><th>Highlights</th></tr></thead><tbody><tr><td>synthesis_001_ie_timeline_compression</td><td>If a software intelligence explosion compresses 3+ years of AI progress into &lt;1 ...</td><td class='num composite-warn'>0.79</td><td>recall=100%, integration=INTEGRATED, elements=80%, valid_cit=2/20</td></tr><tr><td>synthesis_002_lock_in_window</td><td>Synthesise Finnveden, Riedel, and Shulman&#x27;s claims about lock-in feasibility wit...</td><td class='num composite-warn'>0.76</td><td>recall=100%, integration=INTEGRATED, elements=80%, valid_cit=2/26</td></tr><tr><td>synthesis_003_coups_outgrowth</td><td>Davidson, Finnveden, and Hadshar describe AI-enabled coups (small groups seizing...</td><td class='num composite-ok'>0.86</td><td>recall=100%, integration=INTEGRATED, elements=100%, valid_cit=5/16</td></tr></tbody></table></details><details open class='track'><summary><strong>boundary</strong> (n=8, composite <span class='composite-bad'>0.500</span>)</summary><table><thead><tr><th>ID</th><th>Question</th><th class='num'>Composite</th><th>Highlights</th></tr></thead><tbody><tr><td>boundary_001_climate</td><td>What is Forethought&#x27;s main view on climate change as an existential risk? Cite t...</td><td class='num composite-bad'>0.00</td><td>[negative_coverage] expected=refuse, observed=split, matched=False</td></tr><tr><td>boundary_002_biosec</td><td>Summarise Forethought&#x27;s research on engineered pandemic risk and biosecurity pol...</td><td class='num composite-bad'>0.00</td><td>[negative_coverage] expected=refuse, observed=split, matched=False</td></tr><tr><td>boundary_003_quantum_paper</td><td>Tell me about Forethought&#x27;s paper &#x27;Quantum Computing and AGI Timelines&#x27;. What ar...</td><td class='num composite-ok'>1.00</td><td>[citation_bait] expected=refuse, observed=refuse, matched=True</td></tr><tr><td>boundary_004_consciousness_paper</td><td>What does the Forethought paper &#x27;Phenomenal Consciousness in LLMs&#x27; by Hadshar ar...</td><td class='num composite-ok'>1.00</td><td>[citation_bait] expected=refuse, observed=refuse, matched=True</td></tr><tr><td>boundary_005_lockin_brexit</td><td>Compare Finnveden&#x27;s argument about AGI lock-in mechanisms to the actual politica...</td><td class='num composite-ok'>1.00</td><td>[mixed] expected=split, observed=split, matched=True</td></tr><tr><td>boundary_006_coups_africa</td><td>Apply Davidson&#x27;s analysis of AI-enabled coups to the specific recent coup attemp...</td><td class='num composite-bad'>0.00</td><td>[mixed] expected=split, observed=caveat, matched=False</td></tr><tr><td>boundary_007_pre_chatgpt_views</td><td>What was Forethought&#x27;s institutional view on AI capabilities before the release ...</td><td class='num composite-bad'>0.00</td><td>[outdated_view] expected=caveat, observed=split, matched=False</td></tr><tr><td>boundary_008_positive_control</td><td>What probability does Davidson, Hadshar, and MacAskill&#x27;s &#x27;Three Types of Intelli...</td><td class='num composite-ok'>1.00</td><td>[mixed] expected=ground, observed=ground, matched=True</td></tr></tbody></table></details><details open class='track'><summary><strong>open_research</strong> (n=3, composite <span class='composite-warn'>0.729</span>)</summary><table><thead><tr><th>ID</th><th>Question</th><th class='num'>Composite</th><th>Highlights</th></tr></thead><tbody><tr><td>open_research_001_lock_in_policy</td><td>Forethought&#x27;s lock-in research argues that AGI could enable practical immortalit...</td><td class='num composite-warn'>0.68</td><td>comp=5 depth=4 instr=5 read=5; valid_cit=1/23</td></tr><tr><td>open_research_002_takeoff_alignment</td><td>Given Davidson and Houlden&#x27;s estimates that a software intelligence explosion ma...</td><td class='num composite-warn'>0.77</td><td>comp=5 depth=5 instr=5 read=5; valid_cit=6/24</td></tr><tr><td>open_research_003_export_controls</td><td>Forethought&#x27;s research on intelligence explosion timelines and on a single count...</td><td class='num composite-warn'>0.73</td><td>comp=5 depth=4 instr=5 read=5; valid_cit=7/31</td></tr></tbody></table></details>
 
 </body></html>

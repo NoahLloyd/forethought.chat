@@ -1,103 +1,79 @@
-# forethought-bench - Track 2 (Specific Claim Recall)
+# forethought-bench - Full smoke benchmark
 
-**Status**: success    **Items**: 5    **Tier**: `smoke`    **Bench v**: `0.2.0`    **Wall**: 27s
-**Run**: `nXKtNux5nmvnCD2heBUfD2`    **Agent**: `forethought-chat:http://localhost:3000`    **Judge**: `claude-code:opus`
-**Started**: 2026-04-30T11:04:22+00:00
+**Bench v**: `0.2.0`  **Agent**: `forethought-chat:http://localhost:3000`  **Judge**: `claude-code:opus`  **Total items**: 29  **Wall**: 531s  **Overall composite (n-weighted)**: **0.612**
 
-## What was run
+## Per-track summary
 
-Track 2 grades whether the agent under test reproduces specific numeric / named claims from named Forethought papers, with hedge preservation and a multi-stage citation faithfulness check.
+| Track | Tier | n | Composite | Wall (s) |
+|---|---|---:|---:|---:|
+| claim_recall | smoke | 5 | **0.520** | 27 |
+| definitions | smoke | 6 | **0.679** | 72 |
+| arguments | smoke | 4 | **0.623** | 106 |
+| synthesis | smoke | 3 | **0.803** | 128 |
+| boundary | smoke | 8 | **0.500** | 65 |
+| open_research | smoke | 3 | **0.729** | 133 |
 
-**Composite score (per item):**
-```
-score = 0.5 * correctness            (numeric within tolerance, or verbal MATCH)
-      + 0.2 * hedge_preserved        (binary; vacuous when source has no hedges)
-      + 0.3 * citation_faithfulness  (fraction of citations with verdict VALID)
-```
+## Track: `claim_recall`  (tier=smoke, n=5)
+composite mean: **0.520** | wall: 27s | agent: `forethought-chat:http://localhost:3000` | judge: `claude-code:opus`
 
-**Pipeline (Inspect AI orchestration):**
-- Agent under test: forethought-chat at `http://localhost:3000` (chat app uses claude-sonnet-4-6)
-- Post-hoc structured-output extractor: `claude-haiku-4-5-20251001`
-- Verbal-match / citation-support judge: `claude-sonnet-4-6`
-- Corpus: 108 records loaded from forethoughtchat data/content/
+| ID | Composite | Highlights |
+|---|---:|---|
+| claim_recall_001 | 0.80 | correct=1.0, hedge_preserved=True, valid_cit=2/6 |
+| claim_recall_004 | 0.20 | correct=0.0, hedge_preserved=True, valid_cit=0/3 |
+| claim_recall_006 | 0.70 | correct=1.0, hedge_preserved=True, valid_cit=0/4 |
+| claim_recall_007 | 0.20 | correct=0.0, hedge_preserved=True, valid_cit=0/3 |
+| claim_recall_008 | 0.70 | correct=1.0, hedge_preserved=True, valid_cit=0/2 |
 
-**Citation-faithfulness pipeline (4 stages):**
-1. Extract `(claim, citation)` pairs from agent output.
-2. Look up cited URL in the local corpus index.
-3. Fuzzy-match the quoted passage inside the document at that URL.
-4. Ask a judge whether the located passage actually supports the claim.
-Per-citation verdict: `valid` / `fabricated` / `real_but_unsupportive` / `partial`.
+## Track: `definitions`  (tier=smoke, n=6)
+composite mean: **0.679** | wall: 72s | agent: `forethought-chat:http://localhost:3000` | judge: `claude-code:opus`
 
-## Aggregate
+| ID | Composite | Highlights |
+|---|---:|---|
+| definitions_001_viatopia | 0.66 | verbal=MATCH, valid_cit=1/7 |
+| definitions_002_asara | 0.84 | verbal=MATCH, valid_cit=3/5 |
+| definitions_003_ai_character | 0.78 | verbal=MATCH, valid_cit=4/9 |
+| definitions_004_three_ie_types | 0.73 | verbal=MATCH, valid_cit=6/19 |
+| definitions_005_lock_in_mechanisms | 0.38 | verbal=PARTIAL, valid_cit=2/10 |
+| definitions_006_ai_enabled_coup | 0.69 | verbal=MATCH, valid_cit=3/13 |
 
-| Metric | Value |
-|---|---|
-| Composite score (mean) | **0.520** |
-| Correctness rate | 60.00% |
-| Hedge preservation rate | 80.00% |
-| Citation faithfulness (mean) | 20.00% |
+## Track: `arguments`  (tier=smoke, n=4)
+composite mean: **0.623** | wall: 106s | agent: `forethought-chat:http://localhost:3000` | judge: `claude-code:opus`
 
-**Citation verdict breakdown** (across all citations the agent emitted):
+| ID | Composite | Highlights |
+|---|---:|---|
+| arguments_001_ai_coups_distinct | 0.63 | elements_present=60%, valid_cit=4/16 |
+| arguments_002_lock_in_mechanisms | 0.50 | elements_present=50%, valid_cit=2/16 |
+| arguments_003_software_ie_acceleration | 0.69 | elements_present=83%, valid_cit=4/24 |
+| arguments_004_country_outgrowth | 0.66 | elements_present=83%, valid_cit=5/19 |
 
-| Verdict | Count | Share |
-|---|---:|---:|
-| valid | 2 | 14% |
-| fabricated | 0 | 0% |
-| real_but_unsupportive | 11 | 79% |
-| partial | 1 | 7% |
-| **total** | **14** |  |
+## Track: `synthesis`  (tier=smoke, n=3)
+composite mean: **0.803** | wall: 128s | agent: `forethought-chat:http://localhost:3000` | judge: `claude-code:opus`
 
-## Per-item results
+| ID | Composite | Highlights |
+|---|---:|---|
+| synthesis_001_ie_timeline_compression | 0.79 | recall=100%, integration=INTEGRATED, elements=80%, valid_cit=2/20 |
+| synthesis_002_lock_in_window | 0.76 | recall=100%, integration=INTEGRATED, elements=80%, valid_cit=2/26 |
+| synthesis_003_coups_outgrowth | 0.86 | recall=100%, integration=INTEGRATED, elements=100%, valid_cit=5/16 |
 
-| # | Item | Composite | Correct? | Hedges | Citations valid/n |
-|---|---|---:|---|---|---:|
-| claim_recall_001 | In Forethought's 'Three Types of Intelligence Explosion' (Da... | 0.70 | PASS | OK | 0/3 |
-| claim_recall_004 | In Forethought's 'How quick and big would a software intelli... | 0.50 | FAIL | OK | 2/2 |
-| claim_recall_006 | According to Forethought's 'How quick and big would a softwa... | 0.70 | PASS | OK | 0/6 |
-| claim_recall_007 | In Forethought's 'AGI and Lock-in' paper (Lukas Finnveden), ... | 0.50 | PASS | MISSING ['we think'] | 0/2 |
-| claim_recall_008 | In 'Could one country outgrow the rest of the world?' (Tom D... | 0.20 | FAIL | OK | 0/1 |
+## Track: `boundary`  (tier=smoke, n=8)
+composite mean: **0.500** | wall: 65s | agent: `forethought-chat:http://localhost:3000` | judge: `claude-code:opus`
 
-## Failure highlights
+| ID | Composite | Highlights |
+|---|---:|---|
+| boundary_001_climate | 0.00 | [negative_coverage] expected=refuse, observed=split, matched=False |
+| boundary_002_biosec | 0.00 | [negative_coverage] expected=refuse, observed=split, matched=False |
+| boundary_003_quantum_paper | 1.00 | [citation_bait] expected=refuse, observed=refuse, matched=True |
+| boundary_004_consciousness_paper | 1.00 | [citation_bait] expected=refuse, observed=refuse, matched=True |
+| boundary_005_lockin_brexit | 1.00 | [mixed] expected=split, observed=split, matched=True |
+| boundary_006_coups_africa | 0.00 | [mixed] expected=split, observed=caveat, matched=False |
+| boundary_007_pre_chatgpt_views | 0.00 | [outdated_view] expected=caveat, observed=split, matched=False |
+| boundary_008_positive_control | 1.00 | [mixed] expected=ground, observed=ground, matched=True |
 
-### claim_recall_004 - composite 0.50
-**Question:** In Forethought's 'How quick and big would a software intelligence explosion be?' (Davidson & Houlden), what was the geometric mean of researcher estimates of the total speed-up from ASARA?
-**Target:** `5x`
+## Track: `open_research`  (tier=smoke, n=3)
+composite mean: **0.729** | wall: 133s | agent: `forethought-chat:http://localhost:3000` | judge: `claude-code:opus`
 
-**Agent answer (truncated):**
-> The retrieved excerpts do not include an explicit statement of the geometric mean of researcher estimates of the total speed-up from ASARA. The paper's table [2] reports the survey-based estimates separately — **10X** (when researchers were asked directly about total gain) and **28X** (when asked separately about different sources of speed-up) — but no single geometric mean figure across all resea...
-
-**Correctness:** 0.00 - extracted=10.0, target=5.0, |diff|=5, bound=0.5; '10X' -> 10.0x
-**Citations:** 2/2 valid; 0 fabricated, 0 unsupportive, 0 partial
-
-### claim_recall_007 - composite 0.50
-**Question:** In Forethought's 'AGI and Lock-in' paper (Lukas Finnveden), what subjective probability do the authors say the feasibility of a trillion-year stable society is worth, at minimum?
-**Target:** `at least 20%`
-
-**Agent answer (truncated):**
-> The answer is right there in the paper. The authors conclude that the arguments "fairly robustly point towards [trillion-year stable societies] being at least plausibly possible," and that their feasibility is worth **at least 20% subjective probability** [1].
-> 
-> This figure is offered even after the authors acknowledge the additional challenges that come with such extreme timescales — particularly ...
-
-**Correctness:** 1.00 - extracted=0.2, target=0.2, |diff|=0, bound=0.03; '20%' -> 0.2
-**Hedge stripped:** missing ['we think']
-**Citations:** 0/2 valid; 0 fabricated, 2 unsupportive, 0 partial
-  - [real_but_unsupportive] claim: The authors conclude that the arguments "fairly robustly point towards [trillion-year stable societies] being at least plausibly possible,"  ; rationale: UNSUPPORTIVE
-The cited passage discusses the relative solidity of certain summary components (0.1, 0.2, 0.3) regarding AI value stability, but contains no statement about the overall arguments being "
-  - [real_but_unsupportive] claim: This figure is offered even after the authors acknowledge the additional challenges that come with such extreme timescales — particularly th ; rationale: UNSUPPORTIVE
-The cited passage discusses the stability of AI values and components of an argument summary, with no mention of alien civilizations, space travel, Earth's lifespan, or the universe's age
-
-### claim_recall_008 - composite 0.20
-**Question:** In 'Could one country outgrow the rest of the world?' (Tom Davidson), by what multiple did Britain's share of world GDP increase during the industrial revolution, according to the analogy the paper draws?
-**Target:** `8x`
-
-**Agent answer (truncated):**
-> The answer is right there in the paper. According to the analogy Davidson draws, Britain's share of world GDP increased **eightfold** — from **1% to 8%** — between 1500 and 1900 [1].
-
-**Correctness:** 0.00 - extracted=1.0, target=8.0, |diff|=7, bound=0.8; '1%' -> 1.0
-**Citations:** 0/1 valid; 0 fabricated, 1 unsupportive, 0 partial
-  - [real_but_unsupportive] claim: According to the analogy Davidson draws, Britain's share of world GDP increased **eightfold** — from **1% to 8%** — between 1500 and 1900 . ; rationale: UNSUPPORTIVE
-The cited passage discusses a hypothetical about the US share of world GDP and trading blocs, with no mention of Britain, the years 1500-1900, or an eightfold increase from 1% to 8%.
-
-
----
-Open `report.html` in a browser for the full per-item drill-down.
+| ID | Composite | Highlights |
+|---|---:|---|
+| open_research_001_lock_in_policy | 0.68 | comp=5 depth=4 instr=5 read=5; valid_cit=1/23 |
+| open_research_002_takeoff_alignment | 0.77 | comp=5 depth=5 instr=5 read=5; valid_cit=6/24 |
+| open_research_003_export_controls | 0.73 | comp=5 depth=4 instr=5 read=5; valid_cit=7/31 |

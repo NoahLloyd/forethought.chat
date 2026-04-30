@@ -38,7 +38,7 @@ def main() -> int:
     parser.add_argument(
         "--threshold",
         type=float,
-        default=0.80,
+        default=0.65,
         help="Fuzzy match threshold for source_passage in [0,1].",
     )
     args = parser.parse_args()

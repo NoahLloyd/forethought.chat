@@ -7,18 +7,10 @@ Wire format (verified against the chat app's route handler):
   event: done       data: {"stopReason", "iterations", "usage"}
   event: error      data: {"message": "..."}
 
-SourceCard fields: marker, url, title, category, authors, publishedAt,
-section, snippet. Markers are stable across the request, so [N] in the
-prose answer maps directly to source.marker == N.
-
-Citation extraction is deterministic and heuristic, not LLM-based:
-- For each [N] marker in the prose, the surrounding sentence becomes the
-  parsed_claim and the source.snippet (the chunk the agent actually saw)
-  becomes Citation.passage.
-- This fixes the "passage-threading" bug where the previous LLM extractor
-  produced Citation.passage = None and the citation-faithfulness pipeline
-  fell back to the head of the cited document, mis-grading correct citations
-  as real_but_unsupportive.
+When the chat app's iteration cap is hit, it emits an `error` event AFTER any
+partial prose has streamed. We keep the partial answer rather than raising,
+so the benchmark can still grade what the agent did manage to produce. The
+truncation is recorded in AgentOutput.raw and surfaced via .metadata.
 """
 
 from __future__ import annotations
@@ -41,7 +33,7 @@ class ForethoughtChatAgent(Agent):
         self,
         base_url: str = DEFAULT_BASE_URL,
         *,
-        timeout: float = 180.0,
+        timeout: float = 240.0,
     ) -> None:
         self.base_url = base_url.rstrip("/")
         self.name = f"forethought-chat:{self.base_url}"
@@ -51,6 +43,7 @@ class ForethoughtChatAgent(Agent):
         sources: list[dict[str, Any]] = []
         text_parts: list[str] = []
         search_queries: list[str] = []
+        truncation: str | None = None
 
         async with httpx.AsyncClient(timeout=self._timeout) as client:
             async with client.stream(
@@ -75,9 +68,10 @@ class ForethoughtChatAgent(Agent):
                     elif event_name == "done":
                         break
                     elif event_name == "error":
-                        raise RuntimeError(
-                            f"forethought-chat error: {data.get('message')!r}"
-                        )
+                        # Don't raise - keep whatever partial prose has streamed.
+                        # The chat app emits this when it hits its iteration cap.
+                        truncation = str(data.get("message", "unknown error"))
+                        break
 
         prose = "".join(text_parts)
         retrieved_passages = [
@@ -90,13 +84,17 @@ class ForethoughtChatAgent(Agent):
         ]
         citations = extract_citations_from_markers(prose, sources)
 
+        raw = prose
+        if truncation:
+            raw = (raw + f"\n\n[forethought-bench note: agent run truncated - {truncation}]").strip()
+
         return AgentOutput(
             final_answer=prose,
             citations=citations,
             confidence=None,
             search_queries=search_queries,
             retrieved_passages=retrieved_passages,
-            raw=prose,
+            raw=raw,
         )
 
 
@@ -109,17 +107,7 @@ def extract_citations_from_markers(
     prose: str, sources: list[dict[str, Any]]
 ) -> list[Citation]:
     """Parse [N] markers from prose and produce Citations using the snippets
-    the chat app already retrieved.
-
-    Each Citation gets:
-      url, title : from sources[N]
-      passage    : sources[N].snippet (the chunk the agent actually saw)
-      supports   : the sentence containing the [N] marker, with [N] tokens stripped
-
-    A given (claim, marker) pair appears once. Markers without a matching
-    source are skipped (this would only happen if the chat app emitted [N]
-    in prose without ever sending sources, which the app's code doesn't do).
-    """
+    the chat app already retrieved."""
     by_marker: dict[int, dict[str, Any]] = {}
     for s in sources:
         marker = s.get("marker")

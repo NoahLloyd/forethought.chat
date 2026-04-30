@@ -1,0 +1,32 @@
+{
+  "id": "arguments_002_lock_in_mechanisms",
+  "track": "arguments",
+  "version": 1,
+  "tier": "smoke",
+  "question": "Reconstruct Finnveden, Riedel, and Shulman's argument for how AGI enables lock-in via multiple distinct mechanisms. Name the mechanisms and explain how they combine to make lock-in possible.",
+  "required_elements": [
+    "Lock-in operates through multiple distinct mechanisms, not a single pathway",
+    "Preservation of goals through stored minds or specifications that can survive indefinitely",
+    "Preventing value drift through constraints on information exposure (potentially including halting philosophical progress)",
+    "Preventing disruption through surveillance and control to block unauthorized space travel, weapons, or competitors",
+    "These mechanisms combine so that an institution could practically eliminate internal sources of drift",
+    "Therefore AGI enables lock-in through coordinated technological, informational, and enforcement mechanisms"
+  ],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/agi-and-lock-in",
+    "title": "AGI and Lock-in",
+    "authors": [
+      "Lukas Finnveden",
+      "Jess Riedel",
+      "Carl Shulman"
+    ]
+  },
+  "source_passage": "Given all these options, it seems more likely than not that an institution could practically eliminate any internal sources of drift that it wanted to.",
+  "metadata": {
+    "topics": [
+      "lock-in"
+    ],
+    "difficulty": "hard",
+    "note": "The three mechanisms (preservation, preventing value drift, preventing disruption) are discussed across separate sections of the paper rather than enumerated in a single passage. The required_elements reflect the substantive argument structure."
+  }
+}

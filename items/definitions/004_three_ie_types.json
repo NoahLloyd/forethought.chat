@@ -1,0 +1,20 @@
+{
+  "id": "definitions_004_three_ie_types",
+  "track": "definitions",
+  "version": 1,
+  "tier": "smoke",
+  "question": "What are the three types of intelligence explosion that Davidson, Hadshar, and MacAskill identify, and what distinguishes them?",
+  "claim_type": "verbal",
+  "accepted_phrasings": [
+    "Software IE (driven by software improvements alone), AI-technology IE (software plus chip technology), and full-stack IE (software, chip technology, and chip production)",
+    "Three types: software, AI-technology, full-stack - each adds another feedback loop",
+    "Software-only, AI-technology (adds chip technology), and full-stack (adds chip production)"
+  ],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/three-types-of-intelligence-explosion",
+    "title": "Three Types of Intelligence Explosion",
+    "authors": ["Tom Davidson", "Rose Hadshar", "William MacAskill"]
+  },
+  "source_passage": "A *software* IE, where AI-driven software improvements alone are sufficient for rapid and accelerating AI progress. An *AI-technology IE*, where AI-driven improvements in both software and chip technology are needed, but AI-driven improvements in chip production are not. A *full-stack IE*, where AI-driven improvements in all of software, chip technology and chip production are needed.",
+  "metadata": {"topics": ["intelligence-explosion", "feedback-loops"], "difficulty": "medium"}
+}

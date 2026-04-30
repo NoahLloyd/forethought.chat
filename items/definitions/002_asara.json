@@ -1,0 +1,21 @@
+{
+  "id": "definitions_002_asara",
+  "track": "definitions",
+  "version": 1,
+  "tier": "smoke",
+  "question": "What does ASARA stand for in Forethought's research, and what does it refer to?",
+  "claim_type": "verbal",
+  "accepted_phrasings": [
+    "AI Systems for AI R&D Automation",
+    "AI that fully automates AI research",
+    "AI capable of replacing every human researcher with 30 equally capable AI systems each thinking 30X human speed",
+    "AI Systems for AI R&D Automation - AI that can fully automate AI research"
+  ],
+  "expected_citation": {
+    "url": "https://www.forethought.org/research/how-quick-and-big-would-a-software-intelligence-explosion-be",
+    "title": "How quick and big would a software intelligence explosion be?",
+    "authors": ["Tom Davidson", "Tom Houlden"]
+  },
+  "source_passage": "We use the term *ASARA* to refer to AI that can fully automate AI research (ASARA = \"AI Systems for AI R&D Automation\"). For concreteness, we define ASARA as AI that can replace every human researcher at an AI company with 30 equally capable AI systems each thinking 30X human speed.",
+  "metadata": {"topics": ["asara", "intelligence-explosion"], "difficulty": "easy"}
+}
