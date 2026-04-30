@@ -20,7 +20,7 @@ export const dynamic = "force-dynamic";
  * chunk in a later search reuses its existing marker so [3] always points
  * to the same passage no matter when the model first read it.
  */
-const MAX_ITERS = 6;
+const MAX_ITERS = 12;
 const SEARCH_DEFAULT_K = 6;
 const SEARCH_MAX_K = 10;
 
