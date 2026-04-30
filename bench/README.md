@@ -40,7 +40,7 @@ export ANTHROPIC_API_KEY=sk-...
 Corpus location:
 
 ```bash
-export FORETHOUGHT_CONTENT_DIR=/path/to/forethoughtchat/data/content
+export FORETHOUGHT_CONTENT_DIR=../web/data/content
 ```
 
 ## Running

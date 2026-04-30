@@ -127,15 +127,32 @@ def _state_question(state: TaskState) -> str:
 
 
 def resolve_content_dir(content_dir: str | None) -> str:
+    """Find the Forethought corpus content directory.
+
+    Priority:
+      1. explicit content_dir argument
+      2. FORETHOUGHT_CONTENT_DIR env var
+      3. monorepo sibling: ../web/data/content (relative to bench/)
+      4. legacy fallback: ../forethoughtchat/data/content
+      5. local cache: ./corpus_cache/
+    """
     if content_dir:
         return content_dir
     env = os.environ.get("FORETHOUGHT_CONTENT_DIR")
     if env:
         return env
+    # Monorepo layout: bench/ and web/ are siblings.
+    bench_root = Path(__file__).resolve().parents[2]
+    sibling_web = bench_root.parent / "web" / "data" / "content"
+    if sibling_web.is_dir():
+        return str(sibling_web)
+    legacy = bench_root.parent / "forethoughtchat" / "data" / "content"
+    if legacy.is_dir():
+        return str(legacy)
     local = Path.cwd() / "corpus_cache"
     if local.is_dir():
         return str(local)
     raise FileNotFoundError(
         "Forethought content directory not found. Set FORETHOUGHT_CONTENT_DIR "
-        "or pass -T content_dir=/path/to/forethoughtchat/data/content"
+        "or pass -T content_dir=/path/to/web/data/content"
     )
