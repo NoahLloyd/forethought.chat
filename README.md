@@ -52,5 +52,7 @@ See [bench/README.md](./bench/README.md) for the eval-suite docs.
 
 ## Deployment
 
-Vercel deploys from the repo root using `vercel.json`, which scopes the build
-to `web/`. The bench is not built or deployed.
+The Vercel project's **Root Directory** is set to `web`. The install command
+in `web/vercel.json` runs `pnpm install` at the monorepo root so the
+`@forethought/agent: workspace:*` dependency resolves; the build then runs
+inside `web/` as Next.js. The bench is not built or deployed.
