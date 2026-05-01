@@ -49,10 +49,10 @@ export const EMPTY_BYOK_STATE: ByokState = {
 export const DEFAULT_PROVIDER: Provider = "anthropic";
 
 /**
- * Default model per provider. The Anthropic entry doubles as the
- * server-default model that the project's own ANTHROPIC_API_KEY pays
- * for when a user hasn't supplied a BYOK key. Sonnet 4.6 hits the
- * sweet spot of cost and intelligence for that fallback.
+ * Default model per provider. The Anthropic entry is the model the local
+ * `claude` CLI runs against by default (passed via `--model`); it bills
+ * the host's subscription, not an API key. Sonnet 4.6 hits the sweet
+ * spot of cost and intelligence.
  */
 export const DEFAULT_MODEL: Record<Provider, string> = {
   anthropic: "claude-sonnet-4-6",
