@@ -8,11 +8,15 @@ Built with Next.js 15, Tailwind 4, TypeScript, and the Anthropic SDK. Retrieval 
 
 ```bash
 pnpm install
-cp .env.example .env.local
-#   ANTHROPIC_API_KEY=sk-ant-…
 pnpm ingest          # scrape forethought.org and build the BM25 index
 pnpm dev             # http://localhost:3000
 ```
+
+The chat route runs through the local `claude` CLI by default — if it's on `PATH` and you've signed in once, every turn spawns `claude -p` and bills your Pro/Max subscription. To set this up: install [Claude Code](https://docs.claude.com/en/agent-sdk/quickstart), run `claude` interactively once to authenticate, then quit.
+
+When the CLI isn't on `PATH` (a deployed Vercel host, a fresh laptop), the route falls through to the Anthropic API SDK and uses `ANTHROPIC_API_KEY`. That's how the deployed site at forethought.chat works without anyone needing to install Claude Code. If neither path is available the chat route returns a 400.
+
+To force one path regardless of detection set `LIBRARIAN_TRANSPORT=cli` or `LIBRARIAN_TRANSPORT=api`.
 
 `pnpm ingest` is the one-shot pipeline: it pulls every URL in the public sitemap, extracts the structured CMS body, splits each piece into ~800-char chunks, and writes a single `data/index.json` (~10 MB, BM25 ready). Cached HTML lives under `data/raw/` so re-running is instant unless you pass `--refresh`.
 
@@ -48,7 +52,7 @@ data/
 
 **Prompting.** The system prompt is two text blocks. The first holds the persona and the full catalog (titles, authors, dates, slugs of all 97 sources) and is marked `cache_control: ephemeral`. That preamble runs ~6–8K tokens, well over Sonnet 4.6's 2048-token cache minimum, so subsequent requests pay ~10% on those tokens instead of the full price. The second block holds the per-request retrieved excerpts and is uncached.
 
-**Streaming.** `client.messages.stream` with `.finalMessage()`. The chat API emits SSE events: a single `sources` event up front (so the UI renders source cards while the model warms up), then `text` deltas, then `done` (with usage including `cacheReadTokens`).
+**Streaming.** SSE-shaped events: `tool_call` per search invocation, `sources` (cumulative) when new chunks land in the registry, `text` deltas as the model writes prose, then `done` with usage and cache reads. The CLI transport spawns `claude -p --output-format stream-json --include-partial-messages` and translates that stream into the same shape; the API transport uses `client.messages.stream` + `.finalMessage()`.
 
 **Citations.** Excerpts are numbered `[1]…[N]` in the prompt. The UI converts inline `[n]` markers in the assistant's prose into coral chips, and a "Sources" grid below each turn collapses chunks back into one card per article.
 
@@ -65,12 +69,13 @@ The scraper reads `__NEXT_DATA__` from each page (Forethought publishes via Next
 
 `.env.local` knobs:
 
-- `ANTHROPIC_API_KEY`: required for the default chat backend (when no user-supplied key is in play).
-- `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SECRET_KEY`: optional. When set, chat history persists to Supabase Postgres and the left sidebar shows past conversations. When unset, the app runs entirely from the local BM25 index and chats live in `localStorage`.
+- `ANTHROPIC_API_KEY`: read by `/api/chat` only when the local `claude` CLI isn't on `PATH` and no BYOK key is supplied. Required on a deployed host without the CLI; optional locally if you've signed in to `claude` once.
+- `LIBRARIAN_TRANSPORT`: `cli` or `api`. Forces a specific Anthropic transport regardless of detection. Leave unset to auto-pick.
+- `NEXT_PUBLIC_SUPABASE_URL` / `SUPABASE_SECRET_KEY`: optional. When set, chat history persists to Supabase Postgres and the left sidebar shows past conversations. When unset, chats live in `localStorage`.
 
 ## Bring-your-own-key (BYOK)
 
-Users can plug in their own API key for any of the supported providers via the **Settings** entry at the bottom of the sidebar. Supported providers:
+The **Settings** drawer at the bottom of the sidebar lets users plug in their own API key for any of the supported providers:
 
 | Provider  | SDK              | Models surfaced in the picker                                  |
 | --------- | ---------------- | -------------------------------------------------------------- |
@@ -78,13 +83,9 @@ Users can plug in their own API key for any of the supported providers via the *
 | OpenAI    | `openai`         | GPT-4.1, GPT-4o, GPT-4o mini                                   |
 | Google    | `@google/genai`  | Gemini 2.5 Pro, Gemini 2.5 Flash                               |
 
-The key is stored only in the user's browser (`localStorage`) and is sent server-side with each chat request, where it's used once and discarded; never logged or persisted. RLS-style: leaving Settings empty falls back to the server's `ANTHROPIC_API_KEY` env var.
+A BYOK Anthropic key always takes the API path (overriding the CLI), since the user has explicitly opted into paying for it. Keys are stored only in the user's browser (`localStorage`) and sent server-side with each chat request, where they're used once and discarded; never logged or persisted.
 
-The agent loop (a single `search` tool over the BM25 corpus) is implemented per-provider in `lib/providers/{anthropic,openai,google}.ts`. Each adapter handles its provider's tool-call streaming protocol; the route in `app/api/chat/route.ts` dispatches based on the BYOK config and shares a single citation-marker registry across providers so `[1]…[N]` markers are stable regardless of which model produced the answer.
-
-Verified end-to-end:
-- Anthropic (default env key + BYOK Haiku model): tool_call → sources → text → done.
-- OpenAI / Google: SDK call shape verified by submitting a fake key and observing a clean 401/INVALID_ARGUMENT propagate back as a human-readable SSE `error` event.
+The agent loop (a single `search` tool over the BM25 corpus) is implemented per-provider in `lib/providers/{anthropic,anthropic-cli,openai,google}.ts`. Anthropic has two transports: `anthropic-cli.ts` spawns `claude -p` for subscription-billed runs, `anthropic.ts` uses the SDK with an API key. The route in `app/api/chat/route.ts` dispatches based on detection + BYOK config and shares a single citation-marker registry so `[1]…[N]` markers are stable regardless of which model produced the answer.
 
 ## Chat history (optional Supabase setup)
 
@@ -129,16 +130,25 @@ Once Supabase is plumbed, natural follow-ons (not yet built):
 - **Response feedback**: thumbs-up/down per assistant turn, scoped to the same anonymous id. Drops directly into the same RLS-deny posture.
 - **Shared chats**: a public-read flag on `chats` plus a slug column lets users share a transcript via URL.
 
-## Deploy to Vercel
+## Deploy
 
 ```bash
 pnpm build
 # Vercel auto-detects Next.js. Set ANTHROPIC_API_KEY in the project's
-# Environment Variables. data/index.json is committed, so no separate
-# ingest step on deploy.
+# Environment Variables — the CLI isn't available on serverless hosts,
+# so the chat route falls through to the API. data/index.json is
+# committed so there's no separate ingest step.
 ```
 
-The chat route uses `runtime: 'nodejs'` (the file-backed BM25 index isn't compatible with the edge runtime).
+The chat route uses `runtime: 'nodejs'` (the file-backed BM25 index isn't compatible with edge).
+
+### Running locally on another machine
+
+To get the cheaper subscription path on your own laptop:
+
+1. Clone the repo and `pnpm install` at the monorepo root.
+2. Install [Claude Code](https://docs.claude.com/en/agent-sdk/quickstart) and run `claude` once interactively to authenticate against your Pro/Max account.
+3. `pnpm dev` — the chat route detects `claude` on `PATH` and spawns it per turn, billing the subscription. You don't need to set `ANTHROPIC_API_KEY` for this path.
 
 ## Disclaimer
 

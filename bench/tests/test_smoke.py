@@ -131,7 +131,9 @@ def test_hedge_multi_word_phrase_direct_match() -> None:
 
 
 def test_items_parse() -> None:
-    items_dir = Path(__file__).resolve().parents[1] / "items" / "claim_recall"
+    items_dir = (
+        Path(__file__).resolve().parents[1] / "items" / "librarian" / "claim_recall"
+    )
     files = list(items_dir.glob("*.json"))
     assert len(files) >= 8
     for f in files:
@@ -193,11 +195,13 @@ def test_extract_citations_handles_compound_markers() -> None:
 
 
 def test_tier_filter_smoke_only_returns_smoke_items() -> None:
+    from forethought_bench._common import load_items_for_track
     from forethought_bench.schema import TrackName
-    from forethought_bench.tasks._common import load_items_for_track
-    smoke = load_items_for_track(TrackName.CLAIM_RECALL, tier="smoke")
-    extended = load_items_for_track(TrackName.CLAIM_RECALL, tier="extended")
-    all_ = load_items_for_track(TrackName.CLAIM_RECALL, tier="all")
+    smoke = load_items_for_track("librarian", TrackName.CLAIM_RECALL, tier="smoke")
+    extended = load_items_for_track(
+        "librarian", TrackName.CLAIM_RECALL, tier="extended"
+    )
+    all_ = load_items_for_track("librarian", TrackName.CLAIM_RECALL, tier="all")
     assert len(smoke) == 5
     assert len(extended) == 8
     assert len(all_) == 8

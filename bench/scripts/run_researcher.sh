@@ -1,13 +1,22 @@
 #!/usr/bin/env bash
-# Run all 6 smoke tracks against the chat app and render a combined report.
-# Usage: bash scripts/run_all_tracks.sh [base_url]
+# Run the Researcher smoke bench (open-domain macrostrategy questions).
+#
+# PARKED: The Researcher harness does not yet exist as a distinct mode.
+# This script runs the open_research items against whatever agent is
+# configured (FOREBENCH_AGENT), so today it grades the Librarian on
+# questions that are deliberately out-of-corpus — useful only to baseline
+# how the current product handles them.
+#
+# Once the Researcher mode is built (likely with much longer time budgets,
+# different harness, pairwise LLM-as-judge), this script will be reworked.
+#
+# Usage: bash scripts/run_researcher.sh [base_url]
 set -euo pipefail
 
 BASE_URL="${1:-http://localhost:3000}"
-LOG_DIR="${LOG_DIR:-logs/all_$(date +%Y%m%d-%H%M%S)}"
+LOG_DIR="${LOG_DIR:-logs/researcher_$(date +%Y%m%d-%H%M%S)}"
 MAX_SAMPLES="${MAX_SAMPLES:-8}"
 
-# Resolve absolute paths so this works regardless of cwd.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 BENCH_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO_ROOT="$(cd "$BENCH_DIR/.." && pwd)"
@@ -26,6 +35,7 @@ fi
 cd "$BENCH_DIR"
 
 mkdir -p "$LOG_DIR"
+echo "Mode        -> researcher (PARKED)"
 echo "Bench dir   -> $BENCH_DIR"
 echo "Logs        -> $LOG_DIR"
 echo "Base URL    -> $BASE_URL"
@@ -33,12 +43,7 @@ echo "Max samples -> $MAX_SAMPLES"
 echo "Corpus      -> $FORETHOUGHT_CONTENT_DIR"
 
 TRACKS=(
-  forethought_bench/tasks/claim_recall.py
-  forethought_bench/tasks/definitions.py
-  forethought_bench/tasks/arguments.py
-  forethought_bench/tasks/synthesis.py
-  forethought_bench/tasks/boundary.py
-  forethought_bench/tasks/open_research.py
+  forethought_bench/researcher/tasks/open_research.py
 )
 
 .venv/bin/inspect eval "${TRACKS[@]}" \

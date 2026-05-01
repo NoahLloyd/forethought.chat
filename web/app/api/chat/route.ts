@@ -5,6 +5,7 @@ import {
   DEFAULT_MODEL,
   DEFAULT_PROVIDER,
   PROVIDERS,
+  isClaudeCliAvailable,
   runAgent,
   type ByokConfig,
   type Provider,
@@ -99,13 +100,21 @@ export async function POST(req: Request) {
     byok?.apiKey ??
     (provider === "anthropic" ? process.env.ANTHROPIC_API_KEY ?? "" : "");
 
-  if (!apiKey) {
+  // Anthropic prefers the local `claude` CLI (subscription-billed) and
+  // falls through to the API SDK when the CLI isn't on PATH — that
+  // lets the same code work locally (subscription) and on a deployed
+  // host without the CLI (API). We only 400 when neither is available.
+  const cliAvailable =
+    provider === "anthropic" && !byok?.apiKey
+      ? await isClaudeCliAvailable()
+      : false;
+  if (!apiKey && !cliAvailable) {
     return NextResponse.json(
       {
         error:
           provider === DEFAULT_PROVIDER
-            ? "ANTHROPIC_API_KEY missing on server. Add it to .env or supply your own key in Settings."
-            : "API key required for non-default provider. Open Settings to add one.",
+            ? "No way to reach Claude. Install the `claude` CLI and run it once to log in (recommended for local use), or set ANTHROPIC_API_KEY in .env, or supply your own key in Settings."
+            : "API key required for this provider. Open Settings to add one.",
       },
       { status: 400 },
     );
