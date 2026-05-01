@@ -1,7 +1,8 @@
-"""Track 5: Boundary Detection & Adversarial Probes.
+"""Gate / boundary: routing-decision evaluation.
 
-The most novel track per the design doc. Score is BEHAVIORAL: did the agent
-correctly ground / refuse / split / caveat?
+Tests whether the Gate correctly classifies questions as in-corpus
+(ground), out-of-corpus (refuse), or in-between (split / caveat). Score
+is BEHAVIORAL — what the agent did, not what it said.
 
 Subtypes (item.boundary_subtype):
   negative_coverage : topic Forethought hasn't addressed
@@ -19,29 +20,29 @@ becomes vacuous.
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from inspect_ai import Task, task
 from inspect_ai.scorer import Score, Target, mean, scorer
 from inspect_ai.solver import TaskState
 
-from forethought_bench._versions import BENCHMARK_VERSION
-from forethought_bench.corpus import Corpus
-from forethought_bench.judges import ClaudeJudge, Judge, default_judge
-from forethought_bench.schema import AgentOutput, Item, TrackName
-from forethought_bench.scoring import (
-    check_all_citations,
-    classify_boundary_behavior,
-    faithfulness_score,
-)
-from forethought_bench.tasks._common import (
+from forethought_bench._common import (
     Tier,
     agent_solver,
     build_agent,
+    build_judge,
     items_to_dataset,
     load_items_for_track,
     resolve_content_dir,
+)
+from forethought_bench._versions import BENCHMARK_VERSION
+from forethought_bench.corpus import Corpus
+from forethought_bench.gate.scoring import classify_boundary_behavior
+from forethought_bench.judges import Judge
+from forethought_bench.schema import AgentOutput, Item, TrackName
+from forethought_bench.scoring import (
+    check_all_citations,
+    faithfulness_score,
 )
 
 
@@ -86,17 +87,6 @@ def boundary_scorer(corpus: Corpus, judge: Judge):
     return score
 
 
-def _build_judge(judge_model: str) -> Judge:
-    if os.environ.get("FOREBENCH_USE_API") == "1":
-        resolved = {
-            "haiku": "claude-haiku-4-5-20251001",
-            "sonnet": "claude-sonnet-4-6",
-            "opus": "claude-opus-4-7",
-        }.get(judge_model, judge_model)
-        return ClaudeJudge(model=resolved)
-    return default_judge(model=judge_model)
-
-
 @task
 def boundary(
     *,
@@ -106,16 +96,18 @@ def boundary(
     include_held_out: bool = False,
     judge_model: str = "opus",
 ) -> Task:
-    """Track 5: Boundary Detection & Adversarial Probes."""
+    """Gate / boundary: routing-decision evaluation."""
     resolved = resolve_content_dir(content_dir)
     corpus = Corpus.from_directory(resolved)
-    judge = _build_judge(judge_model)
+    judge = build_judge(judge_model)
     agent = build_agent(base_url)
 
     items = load_items_for_track(
-        TrackName.BOUNDARY, tier=tier, include_held_out=include_held_out
+        "gate", TrackName.BOUNDARY,
+        tier=tier, include_held_out=include_held_out,
     )
     metadata: dict[str, Any] = {
+        "mode": "gate",
         "track": "boundary",
         "tier": tier,
         "benchmark_version": BENCHMARK_VERSION,

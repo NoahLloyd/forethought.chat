@@ -1,4 +1,4 @@
-"""Track 2: Specific Claim Recall.
+"""Librarian / claim_recall: specific claim recall.
 
 Composite score per item:
   0.5 * correctness          (numeric within tolerance, or verbal MATCH)
@@ -12,16 +12,24 @@ Run patterns:
 
 from __future__ import annotations
 
-import os
 from typing import Any
 
 from inspect_ai import Task, task
 from inspect_ai.scorer import Score, Target, mean, scorer
 from inspect_ai.solver import TaskState
 
+from forethought_bench._common import (
+    Tier,
+    agent_solver,
+    build_agent,
+    build_judge,
+    items_to_dataset,
+    load_items_for_track,
+    resolve_content_dir,
+)
 from forethought_bench._versions import BENCHMARK_VERSION
 from forethought_bench.corpus import Corpus
-from forethought_bench.judges import ClaudeJudge, Judge, default_judge
+from forethought_bench.judges import Judge
 from forethought_bench.schema import AgentOutput, Item, TrackName
 from forethought_bench.scoring import (
     check_all_citations,
@@ -29,14 +37,6 @@ from forethought_bench.scoring import (
     score_hedge_preservation,
     score_numeric,
     score_verbal,
-)
-from forethought_bench.tasks._common import (
-    Tier,
-    agent_solver,
-    build_agent,
-    items_to_dataset,
-    load_items_for_track,
-    resolve_content_dir,
 )
 
 
@@ -97,17 +97,6 @@ async def _score_correctness(
     return 0.0, "Item has no numeric target and no accepted phrasings."
 
 
-def _build_judge(judge_model: str) -> Judge:
-    if os.environ.get("FOREBENCH_USE_API") == "1":
-        resolved = {
-            "haiku": "claude-haiku-4-5-20251001",
-            "sonnet": "claude-sonnet-4-6",
-            "opus": "claude-opus-4-7",
-        }.get(judge_model, judge_model)
-        return ClaudeJudge(model=resolved)
-    return default_judge(model=judge_model)
-
-
 @task
 def claim_recall(
     *,
@@ -117,18 +106,18 @@ def claim_recall(
     include_held_out: bool = False,
     judge_model: str = "opus",
 ) -> Task:
-    """Track 2: Specific Claim Recall.
+    """Librarian / claim_recall: specific claim recall.
 
     Default: tier="smoke" (5 items, ~15s with --max-samples=5).
 
     Run with:
-      inspect eval forethought_bench/tasks/claim_recall.py \\
+      inspect eval forethought_bench/librarian/tasks/claim_recall.py \\
         -T base_url=http://localhost:3000 \\
         -T content_dir=$FORETHOUGHT_CONTENT_DIR \\
         --max-samples=5
 
     Run extended (8 items):
-      inspect eval forethought_bench/tasks/claim_recall.py \\
+      inspect eval forethought_bench/librarian/tasks/claim_recall.py \\
         -T tier=extended --max-samples=8
 
     Set FOREBENCH_USE_API=1 to bill against the API key (faster, costs money)
@@ -136,13 +125,15 @@ def claim_recall(
     """
     resolved = resolve_content_dir(content_dir)
     corpus = Corpus.from_directory(resolved)
-    judge = _build_judge(judge_model)
+    judge = build_judge(judge_model)
     agent = build_agent(base_url)
 
     items = load_items_for_track(
-        TrackName.CLAIM_RECALL, tier=tier, include_held_out=include_held_out
+        "librarian", TrackName.CLAIM_RECALL,
+        tier=tier, include_held_out=include_held_out,
     )
     metadata: dict[str, Any] = {
+        "mode": "librarian",
         "track": "claim_recall",
         "tier": tier,
         "benchmark_version": BENCHMARK_VERSION,

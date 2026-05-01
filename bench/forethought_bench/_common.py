@@ -1,5 +1,8 @@
 """Shared task plumbing: item loading, dataset construction, agent solver.
 
+This module is mode-agnostic. Each mode (librarian, gate, researcher) has its
+own tasks/ subpackage that calls into here with its own mode name.
+
 Tier filtering: items default to tier="smoke" (the small failure-mode-diverse
 subset that runs in fast iteration). Pass tier="extended" to add the broader
 items, or tier="all" to also include items some users mark as extended.
@@ -23,26 +26,28 @@ from forethought_bench.agents import Agent, ClaudeCliAgent, ForethoughtChatAgent
 from forethought_bench.schema import Item, TrackName
 
 Tier = Literal["smoke", "extended", "all"]
+Mode = Literal["librarian", "gate", "researcher"]
 
 
-def items_root() -> Path:
-    """The items/ directory at the repo root."""
-    return Path(__file__).resolve().parents[2] / "items"
+def items_root_for(mode: Mode) -> Path:
+    """The items/<mode>/ directory under the bench root."""
+    return Path(__file__).resolve().parents[1] / "items" / mode
 
 
 def load_items_for_track(
+    mode: Mode,
     track: TrackName,
     *,
     tier: Tier = "smoke",
     include_held_out: bool = False,
 ) -> list[Item]:
-    """Load every item JSON for a track and apply tier + held-out filters.
+    """Load every item JSON for a track within a mode and apply tier + held-out filters.
 
     tier="smoke"    : only Item.tier == "smoke"  (default fast subset)
     tier="extended" : Item.tier in {"smoke", "extended"}  (full curated set)
     tier="all"      : every item, including ones with unknown tier values
     """
-    track_dir = items_root() / track.value
+    track_dir = items_root_for(mode) / track.value
     if not track_dir.is_dir():
         return []
     items: list[Item] = []
@@ -167,7 +172,7 @@ def resolve_content_dir(content_dir: str | None) -> str:
     if env:
         return env
     # Monorepo layout: bench/ and web/ are siblings.
-    bench_root = Path(__file__).resolve().parents[2]
+    bench_root = Path(__file__).resolve().parents[1]
     sibling_web = bench_root.parent / "web" / "data" / "content"
     if sibling_web.is_dir():
         return str(sibling_web)
@@ -181,3 +186,21 @@ def resolve_content_dir(content_dir: str | None) -> str:
         "Forethought content directory not found. Set FORETHOUGHT_CONTENT_DIR "
         "or pass -T content_dir=/path/to/web/data/content"
     )
+
+
+def build_judge(judge_model: str):
+    """Pick the judge based on FOREBENCH_USE_API.
+
+    Default: subscription-billed (claude -p OAuth).
+    Override with FOREBENCH_USE_API=1 to bill ANTHROPIC_API_KEY.
+    """
+    from forethought_bench.judges import ClaudeJudge, default_judge
+
+    if os.environ.get("FOREBENCH_USE_API") == "1":
+        resolved = {
+            "haiku": "claude-haiku-4-5-20251001",
+            "sonnet": "claude-sonnet-4-6",
+            "opus": "claude-opus-4-7",
+        }.get(judge_model, judge_model)
+        return ClaudeJudge(model=resolved)
+    return default_judge(model=judge_model)
