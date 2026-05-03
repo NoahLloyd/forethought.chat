@@ -274,6 +274,8 @@ async def test_answer_support_no_unsupported_claims_full_score() -> None:
 
 @pytest.mark.asyncio
 async def test_answer_support_one_unsupported_short_answer() -> None:
+    """Short answer (~50 chars -> ~1 claim estimate). One unsupported -> 0.10
+    floor (one questionable claim out of one is fully unsupported)."""
     output = AgentOutput(
         final_answer="A short answer with one unsupported claim [1].",
         citations=[Citation(url="u1", title="t", passage="some evidence")],
@@ -281,22 +283,40 @@ async def test_answer_support_one_unsupported_short_answer() -> None:
     corpus = _StubCorpus({"u1": "some evidence"})
     judge = StubJudge('{"unsupported_claims": ["the unsupported claim"], "rationale": "one issue"}')
     res = await score_answer_support(output, corpus, judge)
-    assert res.score == 0.6  # one unsupported, short answer
+    assert res.score == 0.10
     assert res.unsupported_claims == ["the unsupported claim"]
 
 
 @pytest.mark.asyncio
-async def test_answer_support_three_unsupported_low_score() -> None:
+async def test_answer_support_one_unsupported_long_answer() -> None:
+    """Long answer (~1500 chars -> ~10 claim estimate). One unsupported ->
+    1.0 - 1/10 = 0.9. Catches the asymmetry: an isolated unsupported claim in
+    a comprehensive answer is a small penalty, not a 60% one."""
+    long = "Some sentence about a topic. " * 60
     output = AgentOutput(
-        final_answer="Many things [1].",
+        final_answer=long,
+        citations=[Citation(url="u1", passage="ev")],
+    )
+    corpus = _StubCorpus({"u1": "ev"})
+    judge = StubJudge('{"unsupported_claims": ["the unsupported claim"], "rationale": ""}')
+    res = await score_answer_support(output, corpus, judge)
+    assert 0.85 <= res.score <= 0.95
+
+
+@pytest.mark.asyncio
+async def test_answer_support_many_unsupported_floors_at_010() -> None:
+    """Score is bounded below by 0.10 so the bench reserves mass below that
+    for cases where the judge fully rejects the answer."""
+    output = AgentOutput(
+        final_answer="x" * 100,  # short answer, ~1 claim estimate
         citations=[Citation(url="u1", passage="ev")],
     )
     corpus = _StubCorpus({"u1": "ev"})
     judge = StubJudge(
-        '{"unsupported_claims": ["a", "b", "c"], "rationale": "three issues"}'
+        '{"unsupported_claims": ["a", "b", "c", "d", "e"], "rationale": ""}'
     )
     res = await score_answer_support(output, corpus, judge)
-    assert res.score == 0.2
+    assert res.score == 0.10
 
 
 @pytest.mark.asyncio
@@ -349,3 +369,55 @@ async def test_answer_support_dedupes_evidence_by_url() -> None:
     judge = StubJudge('{"unsupported_claims": [], "rationale": ""}')
     res = await score_answer_support(output, corpus, judge)
     assert res.n_cited_sources == 1
+
+
+@pytest.mark.asyncio
+async def test_answer_support_uses_full_doc_not_just_snippet() -> None:
+    """Evidence for the judge is the corpus document body, not the small
+    chunk the agent retrieved -- so a claim supported elsewhere in the
+    paper still counts as supported."""
+    seen_user: list[str] = []
+
+    def respond(req):
+        seen_user.append(req.user)
+        return '{"unsupported_claims": [], "rationale": ""}'
+
+    full_doc = (
+        "This paper covers many things. The answer to the agent's claim is in "
+        "section 3, far from the snippet the agent retrieved. " * 50
+    )
+    output = AgentOutput(
+        final_answer="A claim about section 3 [1].",
+        citations=[Citation(url="u1", passage="a small intro snippet")],
+    )
+    corpus = _StubCorpus({"u1": full_doc})
+    await score_answer_support(output, corpus, StubJudge(respond))
+    # The evidence sent to the judge should include doc-body content, not
+    # just the small snippet.
+    assert seen_user
+    assert "section 3" in seen_user[0]
+
+
+@pytest.mark.asyncio
+async def test_answer_support_centers_window_on_snippet_for_long_doc() -> None:
+    """When the doc is too large, the window should center on the snippet
+    location so the relevant section is preserved."""
+    seen_user: list[str] = []
+
+    def respond(req):
+        seen_user.append(req.user)
+        return '{"unsupported_claims": [], "rationale": ""}'
+
+    # 16K of 'A's, then a unique marker we expect to see, then 16K of 'B's.
+    snippet = "UNIQUE_MARKER_SNIPPET_TEXT"
+    full_doc = ("A" * 16_000) + " " + snippet + " " + ("B" * 16_000)
+    output = AgentOutput(
+        final_answer="claim [1].",
+        citations=[Citation(url="u1", passage=snippet)],
+    )
+    corpus = _StubCorpus({"u1": full_doc})
+    await score_answer_support(
+        output, corpus, StubJudge(respond), max_chars_per_source=4000
+    )
+    assert seen_user
+    assert snippet in seen_user[0], "window should be centered on the snippet"

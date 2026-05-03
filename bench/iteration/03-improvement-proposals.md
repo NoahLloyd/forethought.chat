@@ -1,5 +1,12 @@
 # Librarian bench: improvement proposals
 
+> **Status (2026-05-03, BENCHMARK_VERSION 0.3.0)**: A1, A2, A3 have landed.
+> B1 and the boundary track are removed (gate decides routing; the librarian
+> shouldn't be tested for refusal). C1 (lift n / held-out partition) is
+> deprioritized per the steering note. The rest of this doc is preserved as
+> design history; see `07-landed-2026-05-03.md` for the as-shipped composite
+> shape.
+
 Concrete proposals to lift the bench from "useful smoke test" → "real
 discriminator of agent quality". Each proposal is sized so a single
 tight PR can land it; the priority column tells you what to do first if

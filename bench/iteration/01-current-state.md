@@ -1,5 +1,11 @@
 # Librarian bench: current state (snapshot 2026-05-03)
 
+> **Status note**: this doc captures the PRE-iteration state
+> (BENCHMARK_VERSION 0.2.0). The current bench is at 0.3.0; see
+> `07-landed-2026-05-03.md` for the post-iteration shape (A1+A2+A3
+> landed, boundary track removed). Keeping this doc as the baseline
+> reference for measuring iteration deltas.
+
 Quick reference sheet of what the bench is and what it currently produces, so
 the iteration proposals in `03-improvement-proposals.md` can be read against
 concrete numbers rather than guesses.

@@ -48,18 +48,29 @@ Decide, for each factual claim in the answer, whether the EVIDENCE supports
 it. Joint support across multiple passages is allowed: a claim can be
 "supported" if 2+ passages together back it.
 
+Treat PARAPHRASE as supported. If the EVIDENCE says "the agent's answer
+is good" and the ANSWER says "this is a high-quality response", that is
+supported. Don't insist on lexical overlap; the test is whether the same
+proposition is in EVIDENCE.
+
+Treat REASONABLE PARAPHRASE OF NUMBERS as supported. If EVIDENCE says
+"~50%" and ANSWER says "around half" or "about 0.5", that is supported.
+Likewise "8X" supports "eightfold". Cross-unit equivalence is fine.
+
 DO NOT flag:
 - Definitional or framing prose ("This question concerns ...").
-- Claims phrased as the agent's hedge ("I am not sure", "the corpus
-  doesn't appear to address X directly").
+- Hedges, scope-setting prose, or structural framing ("I'll cover three
+  angles", "the corpus doesn't directly address X").
 - Restatements of the question.
+- Wording that paraphrases EVIDENCE without changing the proposition.
 
 DO flag:
-- Specific numbers, dates, names, or attributed claims that are absent from
-  EVIDENCE.
+- Specific numbers, dates, or names that are absent from EVIDENCE and
+  cannot be derived from it.
 - Causal/conditional claims that EVIDENCE does not back.
 - Claims attributed to a Forethought author or paper when EVIDENCE doesn't
   contain that attribution.
+- New propositions the agent introduces that no piece of EVIDENCE covers.
 
 Return JSON only, no markdown fences:
 
@@ -104,20 +115,23 @@ async def score_answer_support(
     corpus: Corpus,
     judge: Judge,
     *,
-    max_evidence_chars: int = 24_000,
-    max_chars_per_source: int = 4_000,
+    max_evidence_chars: int = 48_000,
+    max_chars_per_source: int = 8_000,
 ) -> AnswerSupportResult:
     """Grade whether the agent's answer makes any unsupported claims given the
     cited evidence block.
 
-    The evidence block is a concatenation of:
-      - the agent's quoted passage if present (these are the chunks the agent
-        actually saw via retrieval), OR
-      - the corpus document body trimmed to `max_chars_per_source`, when no
-        passage was quoted but the URL is in the corpus.
+    Evidence per cited source is the FULL document body (capped at
+    `max_chars_per_source`), not just the chunk the agent retrieved. This
+    matters: per-document holistic grading asks "is this claim supported by
+    the cited PAPER?" not "is it supported by the SNIPPET the agent saw?"
+    A retrieval system that surfaced the wrong chunk shouldn't make the
+    answer's claims look unsupported when the paper itself does support
+    them.
 
-    Deduped by URL so a 10-citation answer pointing at 3 papers gets 3
-    evidence sources.
+    For papers larger than `max_chars_per_source`, we include a window
+    centered on the agent's cited snippet (if any) so the most relevant
+    section is guaranteed to be in the evidence. Deduped by URL.
     """
     answer = (output.final_answer or "").strip()
     if not answer:
@@ -172,22 +186,22 @@ async def score_answer_support(
 def _score_from_unsupported(answer: str, unsupported: list[str]) -> float:
     """Map the unsupported-claim list to a [0, 1] score.
 
-    Heuristic:
-      0 unsupported            -> 1.0
-      1 unsupported, short ans -> 0.6 (single bad claim is a real penalty)
-      1 unsupported, long ans  -> 0.7
-      2 unsupported            -> 0.4
-      3+ unsupported           -> 0.2
+    The score is a smooth ratio of unsupported claims to a rough estimate of
+    the answer's total claim count (1 claim per ~150 chars of prose, capped
+    at 20). A long answer with one questionable claim should not score the
+    same as a short answer composed of one questionable claim.
+
+    Bounds: floor 0.10 (bench should never give 0 for "judge complained
+    about a few claims"; that mass should be reserved for "judge fully
+    rejected the answer"); ceiling 1.0 when the unsupported list is empty.
     """
     n = len(unsupported)
     if n == 0:
         return 1.0
-    long = len(answer) > 1200
-    if n == 1:
-        return 0.7 if long else 0.6
-    if n == 2:
-        return 0.4
-    return 0.2
+    estimated_claims = max(1, min(20, len(answer) // 150))
+    ratio = n / estimated_claims
+    score = max(0.10, 1.0 - ratio)
+    return round(score, 3)
 
 
 def _build_evidence_blocks(
@@ -198,8 +212,10 @@ def _build_evidence_blocks(
 ) -> list[tuple[str, str, str]]:
     """Build (url, title, evidence_text) tuples deduped by URL.
 
-    Pulls the agent's quoted passage if present; falls back to the corpus
-    document body when the passage is absent or empty.
+    Each block is the corpus document body (capped at max_chars_per_source).
+    For longer papers, the window is centered on the agent's cited snippet
+    so the section the agent actually drew from is guaranteed to be in the
+    evidence.
     """
     blocks: list[tuple[str, str, str]] = []
     seen_urls: set[str] = set()
@@ -207,24 +223,41 @@ def _build_evidence_blocks(
         url = (c.url or "").strip()
         if not url or url in seen_urls:
             continue
-        evidence: str
-        title = (c.title or "").strip() or "(untitled)"
-        if c.passage and c.passage.strip():
-            evidence = c.passage.strip()
-        else:
-            record = corpus.by_url(url)
-            if record is None:
-                # Cannot include this source; skip silently. Per-citation
-                # pipeline will already flag it as fabricated.
-                continue
-            doc = (record.text or record.body or "").strip()
-            evidence = doc[:max_chars_per_source]
-            title = record.title or title
+        record = corpus.by_url(url)
+        if record is None:
+            continue
+        doc = (record.text or record.body or "").strip()
+        if not doc:
+            continue
+        title = record.title or (c.title or "").strip() or "(untitled)"
+        snippet = (c.passage or "").strip()
+        evidence = _doc_window(doc, snippet, max_chars=max_chars_per_source)
         if not evidence:
             continue
         seen_urls.add(url)
         blocks.append((url, title, evidence))
     return blocks
+
+
+def _doc_window(doc: str, snippet: str, *, max_chars: int) -> str:
+    """Return up to `max_chars` of `doc`. If the doc fits, return it whole.
+    Otherwise, center the window on `snippet` (best-effort substring search)
+    so the most relevant region is included; fall back to the document head."""
+    if len(doc) <= max_chars:
+        return doc
+    if snippet:
+        idx = doc.find(snippet)
+        if idx == -1 and len(snippet) > 60:
+            # Fuzzy match would be more robust, but a 60-char prefix is a
+            # strong signal and avoids pulling in rapidfuzz at hot-path cost.
+            idx = doc.find(snippet[:60])
+        if idx != -1:
+            half = max_chars // 2
+            start = max(0, idx - half)
+            end = min(len(doc), start + max_chars)
+            start = max(0, end - max_chars)
+            return doc[start:end]
+    return doc[:max_chars]
 
 
 def _pack_evidence(

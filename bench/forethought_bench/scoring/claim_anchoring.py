@@ -52,12 +52,32 @@ RULES
   the marker backs. NOT the whole sentence, unless the sentence is itself a
   single clause. Prefer the bare fact: a number with its referent, a named
   concept with its definition, a single premise.
-- If a sentence is "X is true and Y has probability 50% [1] [2]", figure out
-  which clause each marker backs from semantics where possible. If both
-  markers are clearly attached to the joint sentence, output the joint claim
-  for both rather than guessing.
 - Do NOT paraphrase; preserve the agent's wording where possible.
 - Do NOT invent claims the agent did not make.
+
+EXAMPLE
+PROSE:
+  "Software-IE is plausible and chip-tech feedback alone reaches 65% [1] [2]."
+MARKERS:
+  0. [1] sentence: "Software-IE is plausible and chip-tech feedback alone reaches 65%"
+  1. [2] sentence: "Software-IE is plausible and chip-tech feedback alone reaches 65%"
+OUTPUT:
+{"claims":[
+  {"index":0,"marker":1,"supports":"Software-IE is plausible"},
+  {"index":1,"marker":2,"supports":"chip-tech feedback alone reaches 65%"}
+]}
+
+If a sentence is genuinely a single joint claim that both markers back,
+output the same supports string for both rather than splitting arbitrarily:
+
+EXAMPLE (joint claim)
+PROSE:
+  "Davidson and MacAskill both argue lock-in is plausible by 2050 [1] [2]."
+OUTPUT:
+{"claims":[
+  {"index":0,"marker":1,"supports":"lock-in is plausible by 2050"},
+  {"index":1,"marker":2,"supports":"lock-in is plausible by 2050"}
+]}
 """
 
 CLAIM_ANCHOR_USER_TEMPLATE = """\
