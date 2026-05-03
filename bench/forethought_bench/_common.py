@@ -1,7 +1,9 @@
 """Shared task plumbing: item loading, dataset construction, agent solver.
 
-This module is mode-agnostic. Each mode (librarian, gate, researcher) has its
-own tasks/ subpackage that calls into here with its own mode name.
+This module is mode-agnostic. Each mode (librarian, researcher) has its own
+tasks/ subpackage that calls into here with its own mode name. Gate was
+removed: routing-decision tests for the librarian were testing the wrong
+abstraction (the gate decides routing before the librarian sees the query).
 
 Tier filtering: items default to tier="smoke" (the small failure-mode-diverse
 subset that runs in fast iteration). Pass tier="extended" to add the broader
@@ -26,7 +28,7 @@ from forethought_bench.agents import Agent, ClaudeCliAgent, ForethoughtChatAgent
 from forethought_bench.schema import Item, TrackName
 
 Tier = Literal["smoke", "extended", "all"]
-Mode = Literal["librarian", "gate", "researcher"]
+Mode = Literal["librarian", "researcher"]
 
 
 def items_root_for(mode: Mode) -> Path:

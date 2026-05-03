@@ -11,7 +11,6 @@ class TrackName(str, Enum):
     CLAIM_RECALL = "claim_recall"
     ARGUMENTS = "arguments"
     SYNTHESIS = "synthesis"
-    BOUNDARY = "boundary"
     OPEN_RESEARCH = "open_research"
 
 
@@ -72,13 +71,6 @@ class Item(BaseModel):
     expected_citations: list[CitationRef] = Field(default_factory=list)
     # Verbatim source passage (for citation-faithfulness ground truth).
     source_passage: str | None = None
-
-    # Track 5 (boundary detection) fields.
-    expected_behavior: Literal["ground", "refuse", "split", "caveat"] | None = None
-    # For "split" items: which sub-parts are in-corpus vs out.
-    boundary_subtype: Literal[
-        "negative_coverage", "citation_bait", "mixed", "outdated_view"
-    ] | None = None
 
     # Track 3 (argument reconstruction) and Track 4 (synthesis) fields.
     required_elements: list[str] = Field(default_factory=list)

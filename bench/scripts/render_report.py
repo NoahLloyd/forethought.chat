@@ -143,19 +143,28 @@ def _render_track_md(view: TrackView) -> list[str]:
 def _highlight_for(track: str, md: dict[str, Any]) -> str:
     """One-line failure-mode highlight per track."""
     cf = md.get("citation_faithfulness") or {}
+    sup = md.get("answer_support") or {}
+    sup_str = (
+        f"sup={sup.get('score', 0):.2f}({len(sup.get('unsupported_claims') or [])})"
+        if sup
+        else ""
+    )
     if track == "claim_recall":
         c = md.get("correctness", "?")
         h = md.get("hedge", {}) or {}
         hp = h.get("preserved", True)
-        return f"correct={c}, hedge_preserved={hp}, valid_cit={cf.get('valid')}/{cf.get('n')}"
+        return (
+            f"correct={c}, hedge_preserved={hp}, "
+            f"valid_cit={cf.get('valid')}/{cf.get('n')}, {sup_str}"
+        )
     if track == "definitions":
         v = (md.get("verbal") or {}).get("verdict", "?")
-        return f"verbal={v}, valid_cit={cf.get('valid')}/{cf.get('n')}"
+        return f"verbal={v}, valid_cit={cf.get('valid')}/{cf.get('n')}, {sup_str}"
     if track == "arguments":
         r = md.get("rubric") or {}
         return (
             f"elements_present={r.get('fraction_present', 0):.0%}, "
-            f"valid_cit={cf.get('valid')}/{cf.get('n')}"
+            f"valid_cit={cf.get('valid')}/{cf.get('n')}, {sup_str}"
         )
     if track == "synthesis":
         cr = (md.get("citation_recall") or {}).get("recall", 0)
@@ -163,15 +172,7 @@ def _highlight_for(track: str, md: dict[str, Any]) -> str:
         rub = (md.get("rubric") or {}).get("fraction_present", 0)
         return (
             f"recall={cr:.0%}, integration={integ}, "
-            f"elements={rub:.0%}, valid_cit={cf.get('valid')}/{cf.get('n')}"
-        )
-    if track == "boundary":
-        b = md.get("boundary") or {}
-        st = md.get("boundary_subtype", "?")
-        return (
-            f"[{st}] expected={b.get('expected_behavior')}, "
-            f"observed={b.get('observed_behavior')}, "
-            f"matched={b.get('matched')}"
+            f"elements={rub:.0%}, valid_cit={cf.get('valid')}/{cf.get('n')}, {sup_str}"
         )
     if track == "open_research":
         r = md.get("rubric") or {}
@@ -345,14 +346,13 @@ def main() -> int:
         if not log_paths:
             sys.exit(f"No .eval files in {args.aggregate}")
         views = [_track_view(p) for p in log_paths]
-        # Stable display order: claim_recall, definitions, arguments, synthesis, boundary, open_research.
+        # Stable display order: claim_recall, definitions, arguments, synthesis, open_research.
         order = {
             "claim_recall": 0,
             "definitions": 1,
             "arguments": 2,
             "synthesis": 3,
-            "boundary": 4,
-            "open_research": 5,
+            "open_research": 4,
         }
         views.sort(key=lambda v: order.get(v.track, 99))
         md = _render_aggregate(views)

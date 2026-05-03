@@ -1,9 +1,10 @@
 """Librarian / claim_recall: specific claim recall.
 
 Composite score per item:
-  0.5 * correctness          (numeric within tolerance, or verbal MATCH)
-  0.2 * hedge_preserved      (binary; only counts when source had hedges)
-  0.3 * citation_faithfulness (fraction of citations with verdict VALID)
+  0.5  * correctness          (LLM judge for numeric: handles "eightfold" etc., or verbal MATCH)
+  0.2  * hedge_preserved      (binary; only counts when source had hedges)
+  0.15 * citation_faithfulness (per-claim chunk-supports-claim grading)
+  0.15 * answer_support       (per-document holistic: any unsupported claims given the cited set?)
 
 Run patterns:
   Smoke (fast iteration):     5 items, ~15-20s with --max-samples=5
@@ -34,8 +35,10 @@ from forethought_bench.schema import AgentOutput, Item, TrackName
 from forethought_bench.scoring import (
     check_all_citations,
     faithfulness_score,
+    refine_citation_claims,
+    score_answer_support,
     score_hedge_preservation,
-    score_numeric,
+    score_numeric_judge,
     score_verbal,
 )
 
@@ -48,20 +51,24 @@ def claim_recall_scorer(corpus: Corpus, judge: Judge):
 
         correctness, correctness_rationale = await _score_correctness(item, output, judge)
         hedge = score_hedge_preservation(output.final_answer, item.hedge_terms)
-        checks = await check_all_citations(output, corpus, judge)
+        refined = await refine_citation_claims(output, judge)
+        checks = await check_all_citations(refined, corpus, judge)
         cit_summary = faithfulness_score(checks)
+        support = await score_answer_support(refined, corpus, judge)
 
         composite = (
             0.5 * correctness
             + 0.2 * (1.0 if hedge.preserved else 0.0)
-            + 0.3 * float(cit_summary["score"])
+            + 0.15 * float(cit_summary["score"])
+            + 0.15 * support.score
         )
 
         explanation = (
             f"correctness={correctness:.2f} ({correctness_rationale}); "
             f"hedge_preserved={hedge.preserved}; "
             f"citations valid={cit_summary['valid']}/{cit_summary['n']}, "
-            f"fab={cit_summary['fabricated']}, unsup={cit_summary['unsupportive']}"
+            f"fab={cit_summary['fabricated']}, unsup={cit_summary['unsupportive']}; "
+            f"support={support.score:.2f} ({len(support.unsupported_claims)} unsupported)"
         )
 
         return Score(
@@ -76,6 +83,7 @@ def claim_recall_scorer(corpus: Corpus, judge: Judge):
                 "hedge": hedge.model_dump(),
                 "citation_faithfulness": cit_summary,
                 "citation_checks": [c.model_dump() for c in checks],
+                "answer_support": support.model_dump(),
             },
         )
 
@@ -86,8 +94,10 @@ async def _score_correctness(
     item: Item, output: AgentOutput, judge: Judge
 ) -> tuple[float, str]:
     if item.claim_type == "numeric" and item.numeric_target is not None:
-        num = score_numeric(output.final_answer, item.numeric_target)
-        return (1.0 if num.within_tolerance else 0.0), num.rationale
+        num = await score_numeric_judge(
+            output.final_answer, item.numeric_target, judge
+        )
+        return num.score, f"verdict={num.verdict}; {num.rationale}"
     if item.accepted_phrasings:
         verbal = await score_verbal(
             item.question, output.final_answer, item.accepted_phrasings, judge

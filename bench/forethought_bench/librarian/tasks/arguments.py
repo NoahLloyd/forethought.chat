@@ -4,8 +4,9 @@ Tests whether the agent can reproduce premise -> conclusion structure of
 named arguments. Uses the required_elements list as a rubric.
 
 Composite score per item:
-  0.7 * elements_score    (fraction_at_least_partial: PRESENT counts 1.0, PARTIAL 0.5)
-  0.3 * citation_faithfulness
+  0.6 * elements_score         (fraction_at_least_partial: PRESENT counts 1.0, PARTIAL 0.5)
+  0.2 * citation_faithfulness  (per-claim chunk-supports-claim grading)
+  0.2 * answer_support         (per-document holistic: any unsupported claims given the cited set?)
 """
 
 from __future__ import annotations
@@ -32,6 +33,8 @@ from forethought_bench.schema import AgentOutput, Item, TrackName
 from forethought_bench.scoring import (
     check_all_citations,
     faithfulness_score,
+    refine_citation_claims,
+    score_answer_support,
     score_required_elements,
 )
 
@@ -45,19 +48,23 @@ def arguments_scorer(corpus: Corpus, judge: Judge):
         rubric = await score_required_elements(
             item.question, output.final_answer, item.required_elements, judge
         )
-        checks = await check_all_citations(output, corpus, judge)
+        refined = await refine_citation_claims(output, judge)
+        checks = await check_all_citations(refined, corpus, judge)
         cit_summary = faithfulness_score(checks)
+        support = await score_answer_support(refined, corpus, judge)
 
         composite = (
-            0.7 * rubric.fraction_at_least_partial
-            + 0.3 * float(cit_summary["score"])
+            0.6 * rubric.fraction_at_least_partial
+            + 0.2 * float(cit_summary["score"])
+            + 0.2 * support.score
         )
         n_present = sum(1 for e in rubric.elements if e.verdict == "PRESENT")
         n_partial = sum(1 for e in rubric.elements if e.verdict == "PARTIAL")
         explanation = (
             f"rubric: {n_present}/{rubric.n_total} present, "
             f"{n_partial} partial; "
-            f"citations valid={cit_summary['valid']}/{cit_summary['n']}"
+            f"citations valid={cit_summary['valid']}/{cit_summary['n']}; "
+            f"support={support.score:.2f} ({len(support.unsupported_claims)} unsupported)"
         )
         return Score(
             value=composite,
@@ -69,6 +76,7 @@ def arguments_scorer(corpus: Corpus, judge: Judge):
                 "rubric": rubric.model_dump(),
                 "citation_faithfulness": cit_summary,
                 "citation_checks": [c.model_dump() for c in checks],
+                "answer_support": support.model_dump(),
             },
         )
 

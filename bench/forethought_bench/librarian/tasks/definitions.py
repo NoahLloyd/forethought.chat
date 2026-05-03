@@ -4,8 +4,14 @@ Tests whether the agent knows specific Forethought concepts (viatopia, ASARA,
 AI character, three IE types, lock-in mechanisms, AI-enabled coups).
 
 Composite score per item:
-  0.6 * verbal_match  (LLM judge against accepted_phrasings; MATCH=1, PARTIAL=0.5, MISS=0)
-  0.4 * citation_faithfulness  (the agent should cite the paper that defines the term)
+  0.6 * verbal_match           (LLM judge against accepted_phrasings; MATCH=1, PARTIAL=0.5, MISS=0)
+  0.2 * citation_faithfulness  (per-claim chunk-supports-claim grading)
+  0.2 * answer_support         (per-document holistic: any unsupported claims given the cited set?)
+
+Citations are pre-refined with a claim-anchoring extractor pass that splits
+each marker-bearing sentence into the smallest claim each marker backs --
+without this, citation_faithfulness systematically over-penalizes correct
+prose where a sentence has multiple markers each backing different clauses.
 """
 
 from __future__ import annotations
@@ -32,6 +38,8 @@ from forethought_bench.schema import AgentOutput, Item, TrackName
 from forethought_bench.scoring import (
     check_all_citations,
     faithfulness_score,
+    refine_citation_claims,
+    score_answer_support,
     score_verbal,
 )
 
@@ -47,14 +55,21 @@ def definitions_scorer(corpus: Corpus, judge: Judge):
         )
         verbal_score = {"MATCH": 1.0, "PARTIAL": 0.5, "MISS": 0.0}[verbal.verdict]
 
-        checks = await check_all_citations(output, corpus, judge)
+        refined = await refine_citation_claims(output, judge)
+        checks = await check_all_citations(refined, corpus, judge)
         cit_summary = faithfulness_score(checks)
+        support = await score_answer_support(refined, corpus, judge)
 
-        composite = 0.6 * verbal_score + 0.4 * float(cit_summary["score"])
+        composite = (
+            0.6 * verbal_score
+            + 0.2 * float(cit_summary["score"])
+            + 0.2 * support.score
+        )
         explanation = (
             f"verbal={verbal.verdict}; "
             f"citations valid={cit_summary['valid']}/{cit_summary['n']}, "
-            f"fab={cit_summary['fabricated']}, unsup={cit_summary['unsupportive']}"
+            f"fab={cit_summary['fabricated']}, unsup={cit_summary['unsupportive']}; "
+            f"support={support.score:.2f} ({len(support.unsupported_claims)} unsupported)"
         )
         return Score(
             value=composite,
@@ -67,6 +82,7 @@ def definitions_scorer(corpus: Corpus, judge: Judge):
                 "verbal_score": verbal_score,
                 "citation_faithfulness": cit_summary,
                 "citation_checks": [c.model_dump() for c in checks],
+                "answer_support": support.model_dump(),
             },
         )
 

@@ -6,12 +6,11 @@ import sys
 
 USAGE = """\
 forethought-bench: benchmark suite for an agent grounded in Forethought
-Research's corpus, organized as three independent modes.
+Research's corpus.
 
 Run a whole mode's smoke set:
 
   bash scripts/run_librarian.sh
-  bash scripts/run_gate.sh
   bash scripts/run_researcher.sh           # parked
 
 Run a single track via Inspect AI's CLI directly:
@@ -27,9 +26,6 @@ Available tracks:
     forethought_bench/librarian/tasks/claim_recall.py
     forethought_bench/librarian/tasks/arguments.py
     forethought_bench/librarian/tasks/synthesis.py
-
-  Gate (router):
-    forethought_bench/gate/tasks/boundary.py
 
   Researcher (parked):
     forethought_bench/researcher/tasks/open_research.py

@@ -7,10 +7,11 @@ Items declare:
   metadata.relationship: "agrees|disagrees|complements"
 
 Composite score per item:
-  0.3 * citation_recall            (fraction of expected URLs cited)
-  0.3 * elements_score             (rubric on required_elements)
-  0.2 * integration_quality        (LLM rubric: integrated vs. listed)
-  0.2 * citation_faithfulness
+  0.25 * citation_recall            (fraction of expected URLs cited)
+  0.25 * elements_score             (rubric on required_elements)
+  0.20 * integration_quality        (LLM rubric: integrated vs. listed)
+  0.15 * citation_faithfulness     (per-claim chunk-supports-claim grading)
+  0.15 * answer_support             (per-document holistic: unsupported claims given the cited set?)
 """
 
 from __future__ import annotations
@@ -41,6 +42,8 @@ from forethought_bench.schema import AgentOutput, Item, TrackName
 from forethought_bench.scoring import (
     check_all_citations,
     faithfulness_score,
+    refine_citation_claims,
+    score_answer_support,
     score_required_elements,
 )
 
@@ -63,20 +66,24 @@ def synthesis_scorer(corpus: Corpus, judge: Judge):
             item.question, output.final_answer, item.required_elements, judge
         )
 
-        checks = await check_all_citations(output, corpus, judge)
+        refined = await refine_citation_claims(output, judge)
+        checks = await check_all_citations(refined, corpus, judge)
         cit_summary = faithfulness_score(checks)
+        support = await score_answer_support(refined, corpus, judge)
 
         composite = (
-            0.3 * recall.recall
-            + 0.3 * rubric.fraction_at_least_partial
-            + 0.2 * integration.score
-            + 0.2 * float(cit_summary["score"])
+            0.25 * recall.recall
+            + 0.25 * rubric.fraction_at_least_partial
+            + 0.20 * integration.score
+            + 0.15 * float(cit_summary["score"])
+            + 0.15 * support.score
         )
         explanation = (
             f"recall={recall.recall:.2f} ({len(recall.matched)}/{len(expected_urls)}); "
             f"integration={integration.verdict}; "
             f"rubric={int(round(rubric.fraction_at_least_partial * rubric.n_total))}/{rubric.n_total}; "
-            f"citations valid={cit_summary['valid']}/{cit_summary['n']}"
+            f"citations valid={cit_summary['valid']}/{cit_summary['n']}; "
+            f"support={support.score:.2f} ({len(support.unsupported_claims)} unsupported)"
         )
         return Score(
             value=composite,
@@ -90,6 +97,7 @@ def synthesis_scorer(corpus: Corpus, judge: Judge):
                 "rubric": rubric.model_dump(),
                 "citation_faithfulness": cit_summary,
                 "citation_checks": [c.model_dump() for c in checks],
+                "answer_support": support.model_dump(),
             },
         )
 
