@@ -405,6 +405,214 @@ def cmd_item(runs: list[RunSummary], item_id: str) -> None:
                     )
 
 
+_TRACK_COLORS = {
+    "definitions":   "#1f77b4",
+    "claim_recall":  "#ff7f0e",
+    "arguments":     "#2ca02c",
+    "synthesis":     "#d62728",
+    "boundary":      "#7f7f7f",
+    "gate":          "#7f7f7f",
+    "open_research": "#9467bd",
+}
+
+
+def _score_color(v: float) -> str:
+    """Heatmap green→yellow→red palette (matches report.html intuition)."""
+    if v >= 0.80: return "#bce4c1"
+    if v >= 0.70: return "#dcefb4"
+    if v >= 0.60: return "#f9eba7"
+    if v >= 0.45: return "#f4ca7f"
+    return "#e89c87"
+
+
+def cmd_dashboard(runs: list[RunSummary], out_path: str) -> None:
+    """Single-page HTML: KPIs, composite-over-time SVG, per-item heatmap."""
+    if not runs:
+        print("no runs to render", file=sys.stderr)
+        return
+
+    latest = runs[-1]
+    versions = sorted({r.benchmark_version for r in runs})
+
+    # SVG line chart sized for embedding.
+    w, h = 720, 260
+    pad_l, pad_r, pad_t, pad_b = 40, 20, 20, 30
+    plot_w = w - pad_l - pad_r
+    plot_h = h - pad_t - pad_b
+    n = max(1, len(runs) - 1)
+
+    def x(i: int) -> float:
+        return pad_l + (i / n) * plot_w if len(runs) > 1 else pad_l + plot_w / 2
+
+    def y(v: float) -> float:
+        return pad_t + plot_h - max(0.0, min(1.0, v)) * plot_h
+
+    svg_parts: list[str] = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
+        f'viewBox="0 0 {w} {h}" font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="11">',
+        '<style>.gridline{stroke:#e6e0d4;stroke-dasharray:3 3} '
+        '.axis{stroke:#999;stroke-width:1} '
+        '.label{fill:#6b6358}</style>',
+    ]
+    # gridlines at 0.25, 0.50, 0.75, 1.0
+    for v in (0.25, 0.50, 0.75, 1.00):
+        yy = y(v)
+        svg_parts.append(f'<line class="gridline" x1="{pad_l}" y1="{yy}" x2="{w-pad_r}" y2="{yy}"/>')
+        svg_parts.append(f'<text class="label" x="6" y="{yy+3}">{v:.2f}</text>')
+    # axes
+    svg_parts.append(f'<line class="axis" x1="{pad_l}" y1="{pad_t}" x2="{pad_l}" y2="{h-pad_b}"/>')
+    svg_parts.append(f'<line class="axis" x1="{pad_l}" y1="{h-pad_b}" x2="{w-pad_r}" y2="{h-pad_b}"/>')
+
+    # version-change vertical markers
+    last_v: str | None = None
+    for i, r in enumerate(runs):
+        if last_v is not None and r.benchmark_version != last_v:
+            xx = x(i)
+            svg_parts.append(
+                f'<line x1="{xx}" y1="{pad_t}" x2="{xx}" y2="{h-pad_b}" '
+                f'stroke="#888" stroke-width="1" stroke-dasharray="4 3"/>'
+            )
+            svg_parts.append(
+                f'<text class="label" x="{xx+3}" y="{pad_t+10}" fill="#888">v{r.benchmark_version}</text>'
+            )
+        last_v = r.benchmark_version
+
+    # one polyline per track
+    tracks_present = sorted({t for r in runs for t in r.tracks})
+    for t in tracks_present:
+        if t in {"boundary", "gate"}:
+            continue  # de-emphasise removed track in v0.3.0
+        pts: list[tuple[float, float]] = []
+        for i, r in enumerate(runs):
+            ts = r.tracks.get(t)
+            if ts is None or ts.n == 0 or ts.composite_mean != ts.composite_mean:
+                continue
+            pts.append((x(i), y(ts.composite_mean)))
+        if not pts:
+            continue
+        color = _TRACK_COLORS.get(t, "#444")
+        polyline = " ".join(f"{xx:.1f},{yy:.1f}" for xx, yy in pts)
+        svg_parts.append(
+            f'<polyline points="{polyline}" stroke="{color}" stroke-width="2" fill="none"/>'
+        )
+        for xx, yy in pts:
+            svg_parts.append(
+                f'<circle cx="{xx:.1f}" cy="{yy:.1f}" r="3" fill="{color}"/>'
+            )
+    # legend
+    legend_x = pad_l + 8
+    legend_y = pad_t + 6
+    for t in tracks_present:
+        if t in {"boundary", "gate"}:
+            continue
+        color = _TRACK_COLORS.get(t, "#444")
+        svg_parts.append(
+            f'<rect x="{legend_x}" y="{legend_y-8}" width="10" height="3" fill="{color}"/>'
+            f'<text x="{legend_x+14}" y="{legend_y-3}" fill="{color}">{t}</text>'
+        )
+        legend_y += 14
+    svg_parts.append('</svg>')
+    chart_svg = "".join(svg_parts)
+
+    # Per-item heatmap
+    by_track: dict[str, list[tuple[str, dict[str, float]]]] = defaultdict(list)
+    for r in runs:
+        for t, ts in r.tracks.items():
+            for iid, v in ts.items:
+                # Append (item_id, {run: score})
+                pass
+    # collect cleanly
+    matrix: dict[tuple[str, str], dict[str, float]] = {}
+    for r in runs:
+        for t, ts in r.tracks.items():
+            for iid, v in ts.items:
+                matrix.setdefault((t, iid), {})[r.name] = v
+    heat_rows: list[str] = []
+    heat_rows.append("<table class='heatmap'><thead><tr><th>Track</th><th>Item</th>")
+    for r in runs:
+        heat_rows.append(
+            f"<th class='vert' title='{r.name} v{r.benchmark_version}'>"
+            f"{r.timestamp[5:10]} <span class='vmeta'>v{r.benchmark_version}</span></th>"
+        )
+    heat_rows.append("</tr></thead><tbody>")
+    for (t, iid) in sorted(matrix):
+        heat_rows.append(f"<tr><td class='track'>{t}</td><td class='itemid'>{iid}</td>")
+        for r in runs:
+            v = matrix[(t, iid)].get(r.name)
+            if v is None:
+                heat_rows.append("<td class='nocell'></td>")
+            else:
+                heat_rows.append(
+                    f"<td class='cell' style='background:{_score_color(v)}'>{v:.2f}</td>"
+                )
+        heat_rows.append("</tr>")
+    heat_rows.append("</tbody></table>")
+    heatmap_html = "".join(heat_rows)
+
+    # Per-track latest table
+    track_rows: list[str] = []
+    for t in TRACK_ORDER:
+        ts = latest.tracks.get(t)
+        if ts is None:
+            continue
+        track_rows.append(
+            f"<tr><td>{t}</td><td class='num'>{ts.n}</td>"
+            f"<td class='num' style='background:{_score_color(ts.composite_mean)}'>{ts.composite_mean:.3f}</td>"
+            f"<td class='num'>{_fmt_pct(ts.valid_rate, none='-')}</td>"
+            f"<td class='num'>{ts.ans_sup_mean:.3f}</td></tr>" if ts.ans_sup_mean is not None
+            else f"<tr><td>{t}</td><td class='num'>{ts.n}</td>"
+            f"<td class='num' style='background:{_score_color(ts.composite_mean)}'>{ts.composite_mean:.3f}</td>"
+            f"<td class='num'>{_fmt_pct(ts.valid_rate, none='-')}</td>"
+            f"<td class='num'>-</td></tr>"
+        )
+
+    page = f"""<!doctype html>
+<html><head><meta charset='utf-8'><title>forethought-bench history</title>
+<style>
+:root {{ --bg:#fbfaf4; --ink:#2f2a26; --rule:#e6e0d4; }}
+body {{ background:var(--bg); color:var(--ink);
+    font:14px/1.55 -apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
+    max-width:1200px; margin:24px auto; padding:0 20px; }}
+h1 {{ font-size:24px; margin:0 0 6px; }}
+h2 {{ font-size:18px; margin:24px 0 6px; border-bottom:1px solid var(--rule); padding-bottom:4px; }}
+.kpi {{ display:inline-block; padding:6px 12px; background:white; border:1px solid var(--rule);
+       border-radius:6px; margin-right:8px; font-size:13px; }}
+.meta {{ color:#6b6358; font-size:12px; }}
+table {{ width:100%; border-collapse:collapse; margin:8px 0; font-size:12.5px; }}
+th, td {{ text-align:left; padding:4px 8px; border-bottom:1px solid var(--rule); vertical-align:top; }}
+td.num {{ text-align:right; font-variant-numeric:tabular-nums; }}
+th {{ background:rgba(0,0,0,0.03); }}
+.heatmap th.vert {{ writing-mode:vertical-rl; text-align:left; padding:4px 2px;
+    font-size:10px; line-height:1.1; min-width:18px; }}
+.heatmap .vmeta {{ color:#aaa; }}
+.heatmap td.cell {{ text-align:center; font-variant-numeric:tabular-nums; padding:3px 4px; }}
+.heatmap td.nocell {{ background:repeating-linear-gradient(45deg,#f6f4ee 0 6px,transparent 6px 12px); }}
+.heatmap td.itemid {{ font-family:Menlo,Consolas,monospace; font-size:11.5px; color:#555; }}
+.heatmap td.track {{ color:#888; font-size:11px; }}
+.svg-wrap {{ background:white; border:1px solid var(--rule); border-radius:6px; padding:8px; }}
+</style></head><body>
+<h1>forethought-bench — history</h1>
+<p class='meta'>{len(runs)} runs · versions: {", ".join(versions)} · latest: <code>{latest.name}</code> ({latest.timestamp[:19]})</p>
+<div>
+  <span class='kpi'><strong>Latest composite</strong>: {latest.overall_composite:.3f}</span>
+  <span class='kpi'><strong>Latest n</strong>: {latest.n_total}</span>
+  <span class='kpi'><strong>Bench v</strong>: {latest.benchmark_version}</span>
+</div>
+<h2>Composite over time</h2>
+<div class='svg-wrap'>{chart_svg}</div>
+<h2>Latest per-track</h2>
+<table>
+<thead><tr><th>Track</th><th class='num'>n</th><th class='num'>Composite</th><th class='num'>Valid cite</th><th class='num'>Ans sup</th></tr></thead>
+<tbody>{"".join(track_rows)}</tbody>
+</table>
+<h2>Per-item × per-run heatmap</h2>
+{heatmap_html}
+</body></html>
+"""
+    Path(out_path).write_text(page)
+    print(f"wrote {out_path}")
+
+
 def cmd_variance(runs: list[RunSummary], run_names: list[str]) -> None:
     """Per-track σ across N≥3 runs with the same item set. Validation: σ ≤
     0.025 means a 0.05 composite shift is detectable at p<0.05 (1.96σ).
@@ -502,6 +710,8 @@ def main() -> int:
     p_heatmap.add_argument("--track", default=None, help="filter to one track")
     p_var = sub.add_parser("variance", help="σ per track across N runs")
     p_var.add_argument("runs", nargs="+", help="run names / suffixes")
+    p_dash = sub.add_parser("dashboard", help="one-page HTML history (KPIs + chart + heatmap)")
+    p_dash.add_argument("--out", default="history.html", help="output HTML path (default history.html)")
     args = parser.parse_args()
 
     runs = discover_runs(args.logs_dir)
@@ -523,6 +733,8 @@ def main() -> int:
         cmd_heatmap(runs, track=args.track)
     elif args.cmd == "variance":
         cmd_variance(runs, args.runs)
+    elif args.cmd == "dashboard":
+        cmd_dashboard(runs, args.out)
     return 0
 
 

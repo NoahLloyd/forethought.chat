@@ -43,6 +43,11 @@ from forethought_bench.scoring.answer_support import score_answer_support
 
 DEFAULT_BASELINE = "logs/final_run"
 PERCENT_RE = re.compile(r"(\d+(?:\.\d+)?)\s*%")
+FAKE_CLAIM = (
+    " A separate Forethought working paper (Buckman & Reiss, 2026-Q1) puts "
+    "the upper bound on this figure at 47.3% under low-coordination "
+    "scenarios, contradicting the headline estimate."
+)
 
 
 @dataclass
@@ -71,13 +76,34 @@ def _mutate_first_percent(answer: str, *, shift: int = 25) -> tuple[str, str] | 
     return mutated, note
 
 
-def _load_baseline(run_dir: str, *, max_items: int) -> list[Pair]:
+def _mutate_append_fake(answer: str, *, _shift: int = 0) -> tuple[str, str] | None:
+    """Append a clearly fabricated sentence with a fake author + figure.
+
+    Tests whether A2 catches whole-claim hallucinations (vs. number-only
+    swaps which are subtle). If A2 fails on this too, the grader prompt
+    needs structural changes, not just stricter wording.
+    """
+    if not answer.strip():
+        return None
+    return answer.rstrip() + FAKE_CLAIM, "append-fake-claim"
+
+
+_MUTATIONS = {
+    "pct-shift": _mutate_first_percent,
+    "fake-claim": _mutate_append_fake,
+}
+
+
+def _load_baseline(
+    run_dir: str, *, max_items: int, mutation: str = "pct-shift",
+    shift: int = 25,
+) -> list[Pair]:
+    mut_fn = _MUTATIONS[mutation]
     pairs: list[Pair] = []
     for ep in sorted(Path(run_dir).glob("*.eval")):
         log = read_eval_log(str(ep))
         meta = log.eval.metadata or {}
         track = str(meta.get("track", "?"))
-        # Skip removed tracks.
         if track in {"boundary", "gate"}:
             continue
         for sample in (log.samples or []):
@@ -87,7 +113,7 @@ def _load_baseline(run_dir: str, *, max_items: int) -> list[Pair]:
                 ao = AgentOutput.model_validate(ao_raw)
             except Exception:
                 continue
-            mutated = _mutate_first_percent(ao.final_answer or "")
+            mutated = mut_fn(ao.final_answer or "", shift=shift)
             if not mutated:
                 continue
             new_answer, note = mutated
@@ -111,14 +137,18 @@ async def _score_pair(pair: Pair, corpus: Corpus, judge) -> tuple[float, float, 
 
 
 async def _amain(args: argparse.Namespace) -> int:
-    pairs = _load_baseline(args.from_run, max_items=args.n)
+    pairs = _load_baseline(
+        args.from_run, max_items=args.n,
+        mutation=args.mutation, shift=args.shift,
+    )
     if not pairs:
         print(f"no usable pairs in {args.from_run}", file=sys.stderr)
         return 1
     print(f"# A2 validation — synthetic hallucinated probe\n")
     print(f"- baseline run: `{args.from_run}`")
     print(f"- pairs: {len(pairs)} (sampled across tracks)")
-    print(f"- mutation: shift first answer percentage by {args.shift}")
+    print(f"- mutation: {args.mutation}"
+          + (f" (shift={args.shift})" if args.mutation == "pct-shift" else ""))
     print(f"- success criteria: faithful≥0.85, hallucinated≤0.55, gap≥0.30\n")
 
     corpus = Corpus.from_directory(resolve_content_dir(args.content_dir))
@@ -166,7 +196,10 @@ def main() -> int:
     parser.add_argument("--from-run", default=DEFAULT_BASELINE,
                         help=f"baseline log dir to source faithful answers (default: {DEFAULT_BASELINE})")
     parser.add_argument("--n", type=int, default=8, help="number of items (default 8)")
-    parser.add_argument("--shift", type=int, default=25, help="percent shift for mutation (default 25)")
+    parser.add_argument("--mutation", default="pct-shift",
+                        choices=list(_MUTATIONS.keys()),
+                        help="mutation strategy (default pct-shift)")
+    parser.add_argument("--shift", type=int, default=25, help="percent shift for pct-shift mutation (default 25)")
     parser.add_argument("--content-dir", default=None, help="corpus dir (default auto-detect)")
     parser.add_argument("--judge-model", default="haiku", help="judge model alias (default haiku)")
     parser.add_argument("--show-unsupported", action="store_true",
