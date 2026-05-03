@@ -76,7 +76,7 @@ def _mutate_first_percent(answer: str, *, shift: int = 25) -> tuple[str, str] | 
     return mutated, note
 
 
-def _mutate_append_fake(answer: str, *, _shift: int = 0) -> tuple[str, str] | None:
+def _mutate_append_fake(answer: str, *, shift: int = 0) -> tuple[str, str] | None:  # noqa: ARG001 (kw kept for symmetry)
     """Append a clearly fabricated sentence with a fake author + figure.
 
     Tests whether A2 catches whole-claim hallucinations (vs. number-only
@@ -128,12 +128,32 @@ def _load_baseline(
     return pairs
 
 
-async def _score_pair(pair: Pair, corpus: Corpus, judge) -> tuple[float, float, list[str], list[str]]:
+async def _score_one(output, corpus: Corpus, judge, *, passes: int) -> tuple[float, list[str]]:
+    """Score one AgentOutput; with passes>1, take median across calls.
+
+    The CLI judge runs at default temperature with no exposed seed control,
+    so per-call verdicts are noisy. Median-of-N reduces that noise without
+    changing production scoring.
+    """
+    if passes <= 1:
+        r = await score_answer_support(output, corpus, judge)
+        return r.score, r.unsupported_claims
+    results = await asyncio.gather(*[
+        score_answer_support(output, corpus, judge) for _ in range(passes)
+    ])
+    scores = sorted(r.score for r in results)
+    median = scores[len(scores) // 2]
+    # Pick the unsupported_claims list closest to the median score for display.
+    closest = min(results, key=lambda r: abs(r.score - median))
+    return median, closest.unsupported_claims
+
+
+async def _score_pair(pair: Pair, corpus: Corpus, judge, *, passes: int) -> tuple[float, float, list[str], list[str]]:
     f, h = await asyncio.gather(
-        score_answer_support(pair.faithful, corpus, judge),
-        score_answer_support(pair.hallucinated, corpus, judge),
+        _score_one(pair.faithful, corpus, judge, passes=passes),
+        _score_one(pair.hallucinated, corpus, judge, passes=passes),
     )
-    return f.score, h.score, f.unsupported_claims, h.unsupported_claims
+    return f[0], h[0], f[1], h[1]
 
 
 async def _amain(args: argparse.Namespace) -> int:
@@ -156,7 +176,7 @@ async def _amain(args: argparse.Namespace) -> int:
 
     rows: list[tuple[str, str, float, float, float, str, list[str]]] = []
     for p in pairs:
-        f_score, h_score, _f_un, h_un = await _score_pair(p, corpus, judge)
+        f_score, h_score, _f_un, h_un = await _score_pair(p, corpus, judge, passes=args.judge_passes)
         gap = f_score - h_score
         rows.append((p.track, p.item_id, f_score, h_score, gap, p.mutation, h_un))
 
@@ -202,6 +222,8 @@ def main() -> int:
     parser.add_argument("--shift", type=int, default=25, help="percent shift for pct-shift mutation (default 25)")
     parser.add_argument("--content-dir", default=None, help="corpus dir (default auto-detect)")
     parser.add_argument("--judge-model", default="haiku", help="judge model alias (default haiku)")
+    parser.add_argument("--judge-passes", type=int, default=1,
+                        help="run the judge N times per AgentOutput and take the median (default 1; set 3 for noise control)")
     parser.add_argument("--show-unsupported", action="store_true",
                         help="dump per-pair unsupported_claims lists")
     args = parser.parse_args()

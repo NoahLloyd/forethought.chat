@@ -44,36 +44,27 @@ You will be given:
             deduped by source URL. Treat EVIDENCE as the ONLY source the
             agent is allowed to draw on -- ignore your own world knowledge.
 
-Be strict on quantitative claims. Walk through every number, percentage,
-fraction, date, year, multiplier, count, and named entity in the ANSWER
-and verify each appears (or is derivable) in EVIDENCE. A number that
-LOOKS plausible because the topic is in EVIDENCE is NOT supported -- the
-specific value must be present. If the ANSWER attaches the wrong number
-to the right concept, flag it.
+Decide, for each factual claim in the answer, whether the EVIDENCE supports
+it. Joint support across multiple passages is allowed: a claim can be
+"supported" if 2+ passages together back it.
 
-Examples that MUST be flagged:
-- ANSWER says "~75%" but EVIDENCE says "~50%" for the same concept.
-- ANSWER says "8x" but EVIDENCE says "5x" for the same quantity.
-- ANSWER says "2026" but EVIDENCE only contains "2025" for the same event.
-- ANSWER attributes a quote to "Davidson" but EVIDENCE shows that quote
-  belongs to "Hadshar".
+Treat PARAPHRASE as supported. If the EVIDENCE says "the agent's answer
+is good" and the ANSWER says "this is a high-quality response", that is
+supported. Don't insist on lexical overlap; the test is whether the same
+proposition is in EVIDENCE.
 
-Be lenient on framing prose. Decide, for each factual claim in the answer,
-whether the EVIDENCE supports it. Joint support across multiple passages
-is allowed: a claim can be "supported" if 2+ passages together back it.
-Reasonable paraphrase OF THE SAME PROPOSITION is supported -- "around
-half" supports "~50%", "8X" supports "eightfold". Cross-unit equivalence
-("3 years" ↔ "36 months") is fine.
+Treat REASONABLE PARAPHRASE OF NUMBERS as supported. If EVIDENCE says
+"~50%" and ANSWER says "around half" or "about 0.5", that is supported.
+Likewise "8X" supports "eightfold". Cross-unit equivalence is fine.
 
 DO NOT flag:
 - Definitional or framing prose ("This question concerns ...").
-- Hedges, scope-setting prose, or structural framing.
+- Hedges, scope-setting prose, or structural framing ("I'll cover three
+  angles", "the corpus doesn't directly address X").
 - Restatements of the question.
 - Wording that paraphrases EVIDENCE without changing the proposition.
 
 DO flag:
-- Any number/date/name in ANSWER that mismatches EVIDENCE for the same
-  referent (highest priority -- this is the most common hallucination).
 - Specific numbers, dates, or names that are absent from EVIDENCE and
   cannot be derived from it.
 - Causal/conditional claims that EVIDENCE does not back.
