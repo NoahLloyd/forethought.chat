@@ -26,6 +26,22 @@ if [ -z "${FORETHOUGHT_CONTENT_DIR:-}" ]; then
   fi
 fi
 
+# pnpm is needed by forethought-preamble.sh; pull in fnm's bin if not yet on PATH.
+if ! command -v pnpm >/dev/null 2>&1; then
+  for FNM_NODE in "$HOME"/.local/share/fnm/node-versions/*/installation/bin; do
+    if [ -x "$FNM_NODE/pnpm" ]; then
+      export PATH="$FNM_NODE:$PATH"
+      break
+    fi
+  done
+fi
+
+# inspect-ai's anthropic provider initialises a client at startup even when we
+# never call the API directly (we use Claude Code subprocess for the agent and
+# the judge). Hand it a placeholder so it doesn't error out.
+: "${ANTHROPIC_API_KEY:=sk-bench-stub-not-used}"
+export ANTHROPIC_API_KEY
+
 cd "$BENCH_DIR"
 
 mkdir -p "$LOG_DIR"

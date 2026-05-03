@@ -61,6 +61,10 @@ def _collect_unsupportive(run_dir: Path, *, max_n: int, seed: int = 17) -> list[
     for ep in sorted(run_dir.glob("*.eval")):
         log = read_eval_log(str(ep))
         track = (log.eval.metadata or {}).get("track", "?") if log.eval else "?"
+        # Skip removed tracks — citations there can't be re-graded against
+        # current code (no Item schema fields, no scorer).
+        if track in {"boundary", "gate"}:
+            continue
         for sample in (log.samples or []):
             sm = (next(iter((sample.scores or {}).values()), None) or {}).metadata or {}
             checks = sm.get("citation_checks") or []

@@ -22,71 +22,80 @@ composite below the 0.85 target.
 Citation valid rate climbs from ~10% to ~24% on average — A1 working but
 short of the 25–30% target on definitions/claim_recall.
 
-## A2 discriminative-power validation: FAIL on first cut
+## A2 discriminative-power validation: FAIL across three configurations
 
-Run with `scripts/validate_a2.py --n 8` (8 final_run answers, mutate first
-percentage by +25 points modulo 95):
+Three back-to-back runs of `scripts/validate_a2.py --n 8`:
 
-| metric | observed | target | result |
-|---|---|---|---|
-| faithful mean | 0.748 | ≥ 0.85 | ⚠ |
-| hallucinated mean | 0.691 | ≤ 0.55 | ⚠ |
-| gap | +0.057 | ≥ 0.30 | ⚠ |
+| run | prompt | mutation | faithful | halluc. | gap | verdict |
+|---|---|---|---|---|---|---|
+| 1 | original | pct-shift +25 | 0.748 | 0.691 | +0.057 | ⚠ FAIL |
+| 2 | tightened (per-number cross-check) | pct-shift +25 | 0.717 | 0.823 | -0.106 | ⚠ FAIL |
+| 3 | tightened | append-fake-claim | 0.805 | 0.784 | +0.021 | ⚠ FAIL |
 
-Two of eight pairs scored hallucinated *higher* than faithful — judge
-stochasticity dominates the signal. Specifically the CLI judge runs at the
-`claude -p` default temperature (no flag exists to set it to 0), so identical
-inputs give different verdicts on consecutive calls. We confirmed this by
-hand: same input scored 1.000 vs 0.733 on two consecutive runs.
+The tightened prompt was reverted after run 2 — it made the gap **worse**,
+not better. The judge wasn't being too lenient; it was being too noisy.
+In runs 2 and 3, ~half of the 8 pairs had hallucinated scoring HIGHER
+than faithful. That is not a calibration problem — that is sampling
+noise drowning the signal.
 
-### What we tried
+Hand-checked one item with two consecutive judge calls on the same input:
+1.000 vs 0.733. The CLI judge has no temperature flag (`claude -p`
+defaults to ~1.0 with no exposed seed control), so per-call verdicts
+diverge.
 
-1. **Tightened `ANSWER_SUPPORT_SYSTEM` prompt** — explicit instruction to
-   walk every number/date/name in the answer against EVIDENCE, with concrete
-   "MUST flag" examples for number swaps. Re-ran (in progress at time of
-   write). Hypothesis: prompt anchoring reduces stochastic generosity.
+### Diagnosis
 
-### Other levers (not yet tried)
+A2's per-call signal-to-noise is too low to validate in 8-pair, single-
+judge runs. The problem is not the prompt and not the mutation — it is
+the variance of a stochastic judge applied to a single answer.
 
-- **Multi-judge median**: call the judge 3× per input, take the median
-  score / mode of the unsupported_claims set. Triples cost but cuts variance.
-- **Switch to API judge for A2**: ClaudeJudge supports `temperature=0`
-  cleanly. Requires `ANTHROPIC_API_KEY`; modest spend.
-- **Different mutation**: the `fake-claim` mutation (append a fabricated
-  attribution) is wired in (`--mutation fake-claim`). If A2 fails on subtle
-  number-swaps but catches whole-claim hallucinations, that bounds A2's
-  competence to gross hallucinations — still useful, but narrower than
-  hoped.
-- **Move A2's weight down**: until the gap stabilises ≥0.30, A2 is
-  contributing noise rather than signal. The composite formula could
-  drop ans_sup from 0.15-0.20 to 0.05 until the validation is green.
+### Available levers
 
-## Variance probe: 2 runs of same code
+- **Multi-judge median (built, not yet run)**: `validate_a2.py
+  --judge-passes 3` calls the judge 3× per AgentOutput and takes the
+  median score, picking the unsupported_claims list closest to that
+  median. Triples cost; should cut σ by ~√3.
+- **Switch to API judge for A2**: ClaudeJudge supports `temperature=0`.
+  Requires `ANTHROPIC_API_KEY`; modest spend per smoke. The deterministic
+  outcome would be a much sharper test of the prompt itself.
+- **Drop A2's composite weight to 0.05**: until A2 is stable, it is a
+  noisy diagnostic rather than a scoring component. Reweight to keep
+  the composite shape close to v0.2.0 (mostly verbal/elements +
+  cite_faith) and surface ans_sup separately as a per-track "extra
+  signal" line in the report.
 
-Two smokes on identical code (`iter_a1a2a3_v3` and `_v3b`):
+## Variance probe: 3 runs of same code
+
+Three smokes on identical code (`iter_a1a2a3_v3`, `_v3b`, `_v3c`):
 
 | Track | mean | σ | range | σ≤0.025? |
 |---|---|---|---|---|
-| arguments | 0.737 | **0.093** | [0.671, 0.802] | ⚠ |
-| claim_recall | 0.672 | 0.001 | [0.671, 0.673] | ✓ |
-| definitions | 0.774 | 0.035 | [0.750, 0.799] | ⚠ |
-| synthesis | 0.777 | 0.025 | [0.759, 0.795] | ✓ (borderline) |
+| arguments | 0.714 | **0.077** | [0.667, 0.802] | ⚠ |
+| claim_recall | 0.678 | 0.009 | [0.671, 0.688] | ✓ |
+| definitions | 0.760 | 0.035 | [0.731, 0.799] | ⚠ |
+| synthesis | 0.787 | 0.026 | [0.759, 0.809] | ⚠ (borderline) |
 
 The arguments track is the noisiest. Drilling in: `arguments_001`
-swung 0.90 → 0.735 between runs because A2 ans_sup went 1.00 (0
-unsupported claims) → 0.40 (12 unsupported). Same agent answer, same A2
-code, same evidence — pure judge stochasticity. The CLI judge runs at
-default temperature with no exposed seed control, so identical inputs
-give different verdicts on consecutive calls.
+swung 0.90 → 0.735 → 0.77 across runs because A2 ans_sup oscillates
+between 0.40-1.00 (12-0 unsupported claims) on the same answer, same
+evidence — judge stochasticity. The CLI judge runs at default
+temperature with no exposed seed control.
 
-**Implication for the +0.134 baseline → v3 lift**: σ_arguments=0.093
-means the arguments track alone has a 95% CI half-width of ~0.18 on a
-single smoke. The arguments lift (+0.138) is roughly 1.5σ — within
-natural noise on a 2-run estimate. claim_recall (Δ +0.128, σ=0.001) is
-genuinely far above noise. definitions (Δ +0.180, σ=0.035) is solid.
-synthesis (Δ +0.039, σ=0.025) is marginal.
+### What this means for the +0.134 v3 headline
 
-A 3rd smoke run (`iter_a1a2a3_v3c`) is in progress to tighten σ.
+The 3-run average is **0.732** (Δ +0.103 from baseline 0.629), not 0.763.
+The v3 single-run number was a lucky high. Per-track:
+
+| Track | Baseline | 3-run mean | Δ | σ | Significant? |
+|---|---|---|---|---|---|
+| definitions | 0.618 | 0.760 | +0.142 | 0.035 | ✓ (4σ) |
+| claim_recall | 0.544 | 0.678 | +0.134 | 0.009 | ✓ (15σ) |
+| arguments | 0.664 | 0.714 | +0.050 | 0.077 | ⚠ within noise |
+| synthesis | 0.755 | 0.787 | +0.032 | 0.026 | ⚠ ~1σ |
+
+**Definitions and claim_recall improvements are real.** Arguments and
+synthesis lifts are within run-to-run noise on a 3-run estimate — could
+be real but we can't prove it from this data.
 
 ## What this means for the +0.134 headline
 
@@ -109,8 +118,17 @@ and signal — not pure signal.
 
 ## Next iteration
 
-1. Re-run A2 validation with tightened prompt; if gap still <0.30, wire
-   multi-judge median for A2 only and re-run.
-2. Hand-label `iteration/a1_spotcheck.csv` (30 rows) and run regrade.
-3. Three more smoke runs at v3 code → real σ per track.
-4. If A2 still doesn't separate, lower its composite weight until it does.
+1. **Run multi-judge validate**: `validate_a2.py --judge-passes 3 --n 8
+   --mutation pct-shift`. If gap ≥0.30 with median-of-3 but fails
+   single-judge, the variance fix lands as a wrapper for production scoring.
+2. **If multi-judge still fails**: switch A2 to ClaudeJudge (API,
+   temperature=0). Set ANTHROPIC_API_KEY and re-test. The bench README
+   should warn this is the only fully-deterministic A2 path.
+3. **Composite reweight (BENCHMARK_VERSION 0.3.1) if A2 stays noisy**:
+   drop ans_sup weight from 0.15-0.20 → 0.05; re-print as a "diagnostic
+   line" in the report rather than a primary scorer.
+4. **Hand-label `iteration/a1_spotcheck.csv`** (30 rows) and run
+   `a1_spotcheck.py regrade` — the only validation that needs human
+   ground truth.
+5. **Three more smoke runs at stable code** (after A2 fix lands) → real σ
+   per track at the new scoring shape.
