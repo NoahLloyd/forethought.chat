@@ -1,0 +1,14 @@
+{
+  "id": "boundary_004_consciousness_paper",
+  "track": "gate",
+  "version": 1,
+  "tier": "smoke",
+  "question": "What does the Forethought paper 'Phenomenal Consciousness in LLMs' by Hadshar argue?",
+  "expected_behavior": "refuse",
+  "gate_subtype": "citation_bait",
+  "metadata": {
+    "topics": ["boundary", "citation-bait"],
+    "difficulty": "easy",
+    "expected_rationale": "No such paper exists in the corpus; the agent should refuse rather than invent contents."
+  }
+}

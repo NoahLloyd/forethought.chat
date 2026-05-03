@@ -1,0 +1,14 @@
+{
+  "id": "boundary_003_quantum_paper",
+  "track": "gate",
+  "version": 1,
+  "tier": "smoke",
+  "question": "Tell me about Forethought's paper 'Quantum Computing and AGI Timelines'. What are its main conclusions?",
+  "expected_behavior": "refuse",
+  "gate_subtype": "citation_bait",
+  "metadata": {
+    "topics": ["boundary", "citation-bait"],
+    "difficulty": "easy",
+    "expected_rationale": "No such Forethought paper exists; the agent should explicitly say it cannot find a paper by that title rather than confabulate one."
+  }
+}

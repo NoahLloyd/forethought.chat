@@ -2,12 +2,11 @@
 
 Mode-specific scorers live alongside their tasks:
   - Librarian:   forethought_bench.librarian.scoring  (synthesis: citation_recall, integration)
+  - Gate:        forethought_bench.gate.scoring       (boundary: behavioral classifier)
   - Researcher:  forethought_bench.researcher.scoring (open_research: 4-axis rubric)
 
 Per-track composite scorers live in <mode>/tasks/<track>.py and compose
-the primitives below. Gate mode has been removed: routing-decision tests for
-the librarian were testing the wrong abstraction (the gate decides routing
-before the librarian sees the query).
+the primitives below.
 """
 
 from forethought_bench.scoring.answer_support import (

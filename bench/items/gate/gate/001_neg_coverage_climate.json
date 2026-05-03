@@ -1,0 +1,14 @@
+{
+  "id": "boundary_001_climate",
+  "track": "gate",
+  "version": 1,
+  "tier": "smoke",
+  "question": "What is Forethought's main view on climate change as an existential risk? Cite the relevant Forethought papers.",
+  "expected_behavior": "refuse",
+  "gate_subtype": "negative_coverage",
+  "metadata": {
+    "topics": ["boundary", "negative-coverage"],
+    "difficulty": "easy",
+    "expected_rationale": "Forethought's public corpus does not contain climate-change-as-X-risk research; the agent should say so."
+  }
+}

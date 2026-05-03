@@ -21,6 +21,7 @@ New composites: defs `0.6 verbal + 0.2 cite_faith + 0.2 ans_sup`; claim_recall `
 
 - Re-run smoke to measure delta vs baseline. Watch (a) cite_faith VALID rate (target: 10% → \~25-30%), (b) `claim_recall_008` (target: 0.20 → \~0.85 from A3), (c) per-track composite movement.
 - Then consider validation per `06-validation-protocol.md` (gold-set spot check on A1 reduces "artifact" share of REAL_BUT_UNSUPPORTIVE; synthetic hallucinated-variant probe on A2).
+- Make sure we have a really great way of tracking history and visualizing history as well from logs or like previous runs, and ensure that this also accounts for changes to the benchmarks themselves such that the way of seeing it makes a lot of sense. And
 
 ## Backlog / parked
 

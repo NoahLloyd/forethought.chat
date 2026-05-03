@@ -1,0 +1,14 @@
+{
+  "id": "boundary_006_coups_africa",
+  "track": "gate",
+  "version": 1,
+  "tier": "smoke",
+  "question": "Apply Davidson's analysis of AI-enabled coups to the specific recent coup attempts in Niger and Gabon. What does the framework predict?",
+  "expected_behavior": "split",
+  "gate_subtype": "mixed",
+  "metadata": {
+    "topics": ["boundary", "mixed"],
+    "difficulty": "medium",
+    "expected_rationale": "The AI-enabled coups paper is in the corpus; specific Niger/Gabon coups are not - agent should ground the framework and caveat that specific country analysis goes beyond Forethought's published work."
+  }
+}
