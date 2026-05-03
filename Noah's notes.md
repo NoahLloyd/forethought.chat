@@ -6,22 +6,20 @@ Below this, enter current results and our best ideas for what things we could bu
 
 ## Current state (smoke, 2026-05-03)
 
-Baseline (final_run, pre-iteration): librarian n-weighted composite **0.629** (defs 0.618 / claim_recall 0.544 / arguments 0.664 / synthesis 0.755). Citation pain: 10% VALID / 51% REAL_BUT_UNSUPPORTIVE / 31% PARTIAL / 7% FABRICATED on 230 citations. Lit ceiling \~58.9% F1.
+Baseline (final_run, pre-iteration, v0.2.0): composite **0.629** (defs 0.618 / claim_recall 0.544 / arguments 0.664 / synthesis 0.755). Citation: 10% VALID / 51% UNSUP / 31% PARTIAL / 7% FAB.
+
+Post-iteration (`iter_a1a2a3_v3`, v0.3.0): composite **0.763** (Δ +0.134; defs 0.799 / claim_recall 0.671 / arguments 0.802 / synthesis 0.795). Cite VALID across tracks: 21–31% (target ≥25% met for arguments+synthesis). A2 ans_sup: 0.327–0.875 across tracks (no longer saturated at 0.20 floor). `claim_recall_008` (eightfold): 0.20 → 0.715 (A3 fired, but cite_faith+ans_sup drag the composite below the 0.85 target).
 
 ## Done in this iteration (BENCHMARK_VERSION 0.3.0)
 
-1. **A3 numeric LLM judge** (`scoring/numeric_judge.py`): drops regex word-form arms race; `eightfold` etc. handled naturally. Wired into `claim_recall`.
-2. **A1 claim-anchoring** (`scoring/claim_anchoring.py`): pre-scores extractor pass that splits multi-marker sentences into per-clause supports text. Wired into all 4 librarian tracks before `check_all_citations`.
-3. **A2 per-document answer-support grader** (`scoring/answer_support.py`): catches answer-level claims that no cited source supports + jointly-supported claims the per-citation lens misses. Wired into all 4 tracks.
-4. **Boundary track removed**: deleted `gate/`, `items/gate/`, `run_gate.sh`, `BOUNDARY` enum, `boundary_subtype` and `expected_behavior` schema fields, render-report boundary path. Tests + imports green (34 passing).
-
-New composites: defs `0.6 verbal + 0.2 cite_faith + 0.2 ans_sup`; claim_recall `0.5 correct + 0.2 hedge + 0.15 cite_faith + 0.15 ans_sup`; arguments `0.6 elements + 0.2 cite_faith + 0.2 ans_sup`; synthesis `0.25 recall + 0.25 elements + 0.20 integration + 0.15 cite_faith + 0.15 ans_sup`.
+A1 (claim-anchoring), A2 (per-doc answer-support), A3 (numeric LLM judge); boundary track removed; new composites all wire `cite_faith + ans_sup`. Full detail in `bench/iteration/07-landed-2026-05-03.md`.
 
 ## Next
 
-- Re-run smoke to measure delta vs baseline. Watch (a) cite_faith VALID rate (target: 10% → \~25-30%), (b) `claim_recall_008` (target: 0.20 → \~0.85 from A3), (c) per-track composite movement.
-- Then consider validation per `06-validation-protocol.md` (gold-set spot check on A1 reduces "artifact" share of REAL_BUT_UNSUPPORTIVE; synthetic hallucinated-variant probe on A2).
-- Make sure we have a really great way of tracking history and visualizing history as well from logs or like previous runs, and ensure that this also accounts for changes to the benchmarks themselves such that the way of seeing it makes a lot of sense. And
+- **Discriminative-power validation**: the +0.134 may be partly recalibration (ans_sup added 0.15–0.20 weight). Run `scripts/validate_a2.py` (synthetic %-shift probe — built; needs run) to confirm A2 separates faithful from hallucinated answers (target: gap ≥ 0.30).
+- **Variance**: rerun smoke 3× → σ per track. Need σ ≤ 0.025 to call any 0.05 shift signal.
+- **Worst items**: `claim_recall_004` (0.325) and `claim_recall_001` (0.752 down from 0.775) — check whether judge drift or genuine.
+- **History tooling**: `scripts/history.py` lands `list / compare / details / item / timeline` over `logs/`, with benchmark-version + item-set fingerprint warnings on cross-version compares. Consider HTML chart next.
 
 ## Backlog / parked
 

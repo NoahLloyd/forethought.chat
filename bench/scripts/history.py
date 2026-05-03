@@ -405,6 +405,83 @@ def cmd_item(runs: list[RunSummary], item_id: str) -> None:
                     )
 
 
+def cmd_variance(runs: list[RunSummary], run_names: list[str]) -> None:
+    """Per-track σ across N≥3 runs with the same item set. Validation: σ ≤
+    0.025 means a 0.05 composite shift is detectable at p<0.05 (1.96σ).
+    """
+    if len(run_names) < 2:
+        print("variance needs at least 2 runs", file=sys.stderr)
+        sys.exit(2)
+    selected: list[RunSummary] = []
+    for n in run_names:
+        r = find_run(n, runs)
+        if r is None:
+            print(f"run not found: {n}", file=sys.stderr)
+            sys.exit(2)
+        selected.append(r)
+    print(f"# Variance across {len(selected)} runs\n")
+    for r in selected:
+        print(f"- `{r.name}` (v{r.benchmark_version}, items={r.item_set_hash})")
+    print()
+    versions = {r.benchmark_version for r in selected}
+    item_sets = {r.item_set_hash for r in selected}
+    if len(versions) > 1 or len(item_sets) > 1:
+        print(
+            f"> ⚠ runs span {len(versions)} version(s) and {len(item_sets)} item "
+            "set(s). Variance estimate mixes scoring shape with run-to-run noise.\n"
+        )
+    print("| Track | n_runs | mean | σ | range | σ≤0.025? |")
+    print("|---|---|---|---|---|---|")
+    track_names = sorted({t for r in selected for t in r.tracks})
+    for t in track_names:
+        composites = [r.tracks[t].composite_mean for r in selected if t in r.tracks]
+        composites = [c for c in composites if c == c]  # drop NaN
+        if len(composites) < 2:
+            continue
+        m = mean(composites)
+        var = sum((c - m) ** 2 for c in composites) / (len(composites) - 1)
+        sigma = var ** 0.5
+        rng = f"[{min(composites):.3f}, {max(composites):.3f}]"
+        print(f"| {t} | {len(composites)} | {m:.3f} | {sigma:.3f} | {rng} | "
+              f"{'✓' if sigma <= 0.025 else '⚠'} |")
+
+
+def cmd_heatmap(runs: list[RunSummary], track: str | None = None) -> None:
+    """Markdown heatmap: rows=items, cols=runs (chronological)."""
+    # Collect scores keyed by (track, item_id) → {run_name: score}.
+    matrix: dict[tuple[str, str], dict[str, float]] = {}
+    run_names: list[str] = []
+    run_versions: dict[str, str] = {}
+    for r in runs:
+        run_names.append(r.name)
+        run_versions[r.name] = r.benchmark_version
+        for t, ts in r.tracks.items():
+            if track and t != track:
+                continue
+            for iid, v in ts.items:
+                matrix.setdefault((t, iid), {})[r.name] = v
+    if not matrix:
+        print("no scored items found", file=sys.stderr)
+        return
+    # Compact run labels: timestamp + first 4 chars of run name
+    short = {n: f"{n[-15:]}" for n in run_names}
+
+    print("# Item heatmap (rows=items, cols=runs sorted chronologically)\n")
+    if track:
+        print(f"Filtered to track=`{track}`.\n")
+    header = ["Track", "Item"] + [short[n] for n in run_names]
+    print("| " + " | ".join(header) + " |")
+    print("|" + "|".join(["---"] * len(header)) + "|")
+    for (t, iid) in sorted(matrix):
+        cells = []
+        for n in run_names:
+            v = matrix[(t, iid)].get(n)
+            cells.append(f"{v:.2f}" if v is not None else "")
+        print(f"| {t} | {iid} | " + " | ".join(cells) + " |")
+    print()
+    print("Versions: " + ", ".join(f"`{n[-15:]}`=v{run_versions[n]}" for n in run_names))
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -421,6 +498,10 @@ def main() -> int:
     p_compare.add_argument("b")
     p_item = sub.add_parser("item", help="one item's score across runs")
     p_item.add_argument("item_id")
+    p_heatmap = sub.add_parser("heatmap", help="per-item × per-run grid")
+    p_heatmap.add_argument("--track", default=None, help="filter to one track")
+    p_var = sub.add_parser("variance", help="σ per track across N runs")
+    p_var.add_argument("runs", nargs="+", help="run names / suffixes")
     args = parser.parse_args()
 
     runs = discover_runs(args.logs_dir)
@@ -438,6 +519,10 @@ def main() -> int:
         cmd_compare(runs, args.a, args.b)
     elif args.cmd == "item":
         cmd_item(runs, args.item_id)
+    elif args.cmd == "heatmap":
+        cmd_heatmap(runs, track=args.track)
+    elif args.cmd == "variance":
+        cmd_variance(runs, args.runs)
     return 0
 
 
