@@ -162,17 +162,20 @@ def _format_target_value(target: NumericTarget) -> str:
     return f"{v}"
 
 
-_VERDICT_RE = re.compile(r"\b(CORRECT|PARTIAL|INCORRECT)\b")
+# Verdict must be the first word on the first non-empty line. INCORRECT comes
+# first in alternation so "INCORRECT" doesn't get parsed as "CORRECT".
+_VERDICT_HEAD_RE = re.compile(r"^\s*(INCORRECT|CORRECT|PARTIAL)\b")
 
 
 def _parse_verdict(text: str) -> str:
     if not text:
         return "INCORRECT"
-    head = text.strip().splitlines()[0].strip().rstrip(":").upper()
-    m = _VERDICT_RE.search(head) or _VERDICT_RE.search(text.upper())
-    if m is None:
-        return "INCORRECT"
-    return m.group(1)
+    for line in text.splitlines():
+        if not line.strip():
+            continue
+        m = _VERDICT_HEAD_RE.match(line.upper())
+        return m.group(1) if m else "INCORRECT"
+    return "INCORRECT"
 
 
 def _parse_json_loose(text: str) -> dict | None:

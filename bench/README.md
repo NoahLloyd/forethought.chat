@@ -3,33 +3,34 @@
 A benchmark suite for an agent that answers macrostrategy questions over
 [Forethought Research](https://www.forethought.org)'s corpus.
 
-The system is structured as **three independent modes**, and the bench
-mirrors that split:
+The system is structured as **two independent modes**, and the bench mirrors
+that split:
 
 | Mode           | Purpose                                                   | Status |
 |----------------|-----------------------------------------------------------|--------|
 | **Librarian**  | Answers questions grounded in Forethought's corpus only.  | Active |
-| **Gate**       | Routes: is this answerable from Forethought, or not?      | Active (only smoke set today; routes either to Librarian or to refusal). |
 | **Researcher** | Open-domain macrostrategy researcher for out-of-corpus.   | Parked. Harness not yet built. |
 
 Each mode has its own bench, items, and runner. They are **not** run as one
 suite — that is intentional. Iterate on one mode at a time.
 
+(Gate-mode boundary tests were removed: the gate decides routing before the
+librarian sees the query, so testing the librarian for refusal was the wrong
+abstraction.)
+
 ```
 bench/
   forethought_bench/
     librarian/   tasks/{definitions,claim_recall,arguments,synthesis}.py + scoring/
-    gate/        tasks/boundary.py + scoring/
     researcher/  tasks/open_research.py + scoring/        # parked
-    scoring/     # shared primitives (citation_faithfulness, hedge, numeric, rubric, verbal)
+    scoring/     # shared primitives (citation_faithfulness, answer_support,
+                 #  claim_anchoring, numeric_judge, hedge, rubric, verbal)
     agents/, corpus/, judges/, _common.py, schema.py, _versions.py
   items/
     librarian/   {definitions,claim_recall,arguments,synthesis}/*.json
-    gate/        boundary/*.json
     researcher/  open_research/*.json
   scripts/
     run_librarian.sh
-    run_gate.sh
     run_researcher.sh                                       # parked
     render_report.py
 ```
@@ -38,18 +39,12 @@ bench/
 
 ### Librarian (grounded answerer)
 
-| Track          | Smoke items | Composite                                                                                          |
-|----------------|------------:|----------------------------------------------------------------------------------------------------|
-| definitions    | 6           | 0.6 verbal_match + 0.4 citation_faithfulness                                                       |
-| claim_recall   | 5           | 0.5 correctness + 0.2 hedge_preservation + 0.3 citation_faithfulness                               |
-| arguments      | 4           | 0.7 elements_rubric + 0.3 citation_faithfulness                                                    |
-| synthesis      | 3           | 0.3 citation_recall + 0.3 elements_rubric + 0.2 integration + 0.2 citation_faithfulness            |
-
-### Gate (router)
-
-| Track          | Smoke items | Composite                                                                                          |
-|----------------|------------:|----------------------------------------------------------------------------------------------------|
-| boundary       | 8           | 1.0 behavioral_match (ground / refuse / split / caveat) across 4 subtypes                          |
+| Track          | Smoke items | Composite                                                                                                          |
+|----------------|------------:|--------------------------------------------------------------------------------------------------------------------|
+| definitions    | 6           | 0.6 verbal_match + 0.2 citation_faithfulness + 0.2 answer_support                                                  |
+| claim_recall   | 5           | 0.5 correctness + 0.2 hedge_preservation + 0.15 citation_faithfulness + 0.15 answer_support                        |
+| arguments      | 4           | 0.6 elements_rubric + 0.2 citation_faithfulness + 0.2 answer_support                                               |
+| synthesis      | 3           | 0.25 citation_recall + 0.25 elements_rubric + 0.20 integration + 0.15 citation_faithfulness + 0.15 answer_support  |
 
 ### Researcher (parked)
 
@@ -57,7 +52,7 @@ bench/
 |----------------|------------:|----------------------------------------------------------------------------------------------------|
 | open_research  | 3           | 0.7 four-axis_rubric + 0.3 citation_faithfulness                                                   |
 
-Total: **29 smoke items**. Tier expansion (`tier=extended`) currently adds 3
+Total: **18 smoke items**. Tier expansion (`tier=extended`) currently adds 3
 items in Librarian/claim_recall.
 
 ## Setup
@@ -88,7 +83,6 @@ a Node-side search wrapper, so you do NOT need to start `pnpm dev`.
 
 ```bash
 bash scripts/run_librarian.sh        # Librarian smoke (4 tracks)
-bash scripts/run_gate.sh             # Gate smoke (boundary)
 bash scripts/run_researcher.sh       # Researcher smoke (parked)
 open report.html
 ```
@@ -141,13 +135,36 @@ Each track's composite is built from primitives in
 `<mode>/scoring/` (mode-specific):
 
 ```
-Librarian / definitions:    0.6 verbal_match + 0.4 citation_faithfulness
-Librarian / claim_recall:   0.5 correctness + 0.2 hedge_preservation + 0.3 citation_faithfulness
-Librarian / arguments:      0.7 elements_rubric + 0.3 citation_faithfulness
-Librarian / synthesis:      0.3 citation_recall + 0.3 elements_rubric + 0.2 integration + 0.2 citation_faithfulness
-Gate / boundary:            1.0 behavioral_match (binary)
+Librarian / definitions:    0.6 verbal_match + 0.2 citation_faithfulness + 0.2 answer_support
+Librarian / claim_recall:   0.5 correctness + 0.2 hedge_preservation + 0.15 citation_faithfulness + 0.15 answer_support
+Librarian / arguments:      0.6 elements_rubric + 0.2 citation_faithfulness + 0.2 answer_support
+Librarian / synthesis:      0.25 citation_recall + 0.25 elements_rubric + 0.20 integration + 0.15 citation_faithfulness + 0.15 answer_support
 Researcher / open_research: 0.7 four_axis_rubric + 0.3 citation_faithfulness
 ```
+
+Two graders work side by side on every track:
+
+- **citation_faithfulness** — per-claim. For each `[N]` marker in the answer,
+  retrieve the cited URL, locate the chunk in the corpus, and ask a judge:
+  "does THIS chunk support THIS claim?" Citations are pre-refined with a
+  claim-anchoring extractor so a sentence with multiple markers gets each
+  marker scored against the smallest clause it backs (not the whole
+  sentence). See `forethought_bench/scoring/claim_anchoring.py`.
+- **answer_support** — per-document, holistic. Concatenates all distinct
+  cited passages into one evidence block and asks: "given the evidence
+  block, does the answer make any unsupported factual claims?" Catches the
+  case where a claim is supported jointly by 2+ chunks, and the case where
+  the answer adds a claim that *no* cited source supports. See
+  `forethought_bench/scoring/answer_support.py`.
+
+These two are complementary, not redundant: per-claim catches misattributed
+citations, per-document catches answer-level claims that no cited source
+supports.
+
+Numeric correctness in `claim_recall` uses an LLM judge
+(`numeric_judge.py`), not regex extraction, so prose like "eightfold",
+"two-thirds", or "a tenfold increase" is handled naturally without keeping
+a vocabulary in the regex.
 
 Failure-mode rollups appear in score metadata for every item. The aggregate
 report shows per-track composite + per-item drill-down.

@@ -4,22 +4,24 @@ Below this, enter current results and our best ideas for what things we could bu
 
 \-- NEVER EDIT ANYTHING ABOVE HERE --
 
-## Current state (smoke, 2026-05-03 final_run)
+## Current state (smoke, 2026-05-03)
 
-Librarian n-weighted composite **0.629**. Per track: definitions 0.618 / claim_recall 0.544 / arguments 0.664 / synthesis 0.755. Boundary 0.750. **Citation pain point**: of 230 citations, 10% VALID, 51% REAL_BUT_UNSUPPORTIVE, 31% PARTIAL, 7% FABRICATED. Prose is fine — markers point at the right paper but a different sentence than the one being scored. Lit (GroUSE, FaithJudge, GaRAGe) puts the industry ceiling near 58.9% F1, so 10% → \~30% VALID would be a real win, not partial.
+Baseline (final_run, pre-iteration): librarian n-weighted composite **0.629** (defs 0.618 / claim_recall 0.544 / arguments 0.664 / synthesis 0.755). Citation pain: 10% VALID / 51% REAL_BUT_UNSUPPORTIVE / 31% PARTIAL / 7% FABRICATED on 230 citations. Lit ceiling \~58.9% F1.
 
-## What to work on next
+## Done in this iteration (BENCHMARK_VERSION 0.3.0)
 
-1. **Split the citation grader** (A1+A2): sentence-anchored per-claim grader + per-document holistic grader. Fixes the granularity mismatch behind the 51% unsupportive bucket. Priority.
-2. **Numeric word-form fix** (A3): drop the regex approach — use LLM-as-judge instead so word forms like `eightfold` are handled naturally.
-3. **Keep n small**: do not lift sample size. Speed of iteration matters more right now.
+1. **A3 numeric LLM judge** (`scoring/numeric_judge.py`): drops regex word-form arms race; `eightfold` etc. handled naturally. Wired into `claim_recall`.
+2. **A1 claim-anchoring** (`scoring/claim_anchoring.py`): pre-scores extractor pass that splits multi-marker sentences into per-clause supports text. Wired into all 4 librarian tracks before `check_all_citations`.
+3. **A2 per-document answer-support grader** (`scoring/answer_support.py`): catches answer-level claims that no cited source supports + jointly-supported claims the per-citation lens misses. Wired into all 4 tracks.
+4. **Boundary track removed**: deleted `gate/`, `items/gate/`, `run_gate.sh`, `BOUNDARY` enum, `boundary_subtype` and `expected_behavior` schema fields, render-report boundary path. Tests + imports green (34 passing).
 
-## Dropped / not doing
+New composites: defs `0.6 verbal + 0.2 cite_faith + 0.2 ans_sup`; claim_recall `0.5 correct + 0.2 hedge + 0.15 cite_faith + 0.15 ans_sup`; arguments `0.6 elements + 0.2 cite_faith + 0.2 ans_sup`; synthesis `0.25 recall + 0.25 elements + 0.20 integration + 0.15 cite_faith + 0.15 ans_sup`.
 
-- **Boundary track**: gate agent already decides whether to route to the librarian. Librarian should always try its best once it receives a query — testing it for refusal is testing the wrong thing. Remove boundary from the bench.
-- **NLI as support judge**: not worth it, keeping LLM judge.
-- **Held-out partition / lifting n**: not a priority.
+## Next
 
-## Backlog / parked ideas
+- Re-run smoke to measure delta vs baseline. Watch (a) cite_faith VALID rate (target: 10% → \~25-30%), (b) `claim_recall_008` (target: 0.20 → \~0.85 from A3), (c) per-track composite movement.
+- Then consider validation per `06-validation-protocol.md` (gold-set spot check on A1 reduces "artifact" share of REAL_BUT_UNSUPPORTIVE; synthetic hallucinated-variant probe on A2).
 
-- **Post-rationalization probe** (detail in `bench/iteration/05-post-rationalization-probe.md`): test whether the agent actually uses its sources or just attaches citations after the fact. Two methods — hide the documents and see if the answer changes; secretly corrupt the documents and see if the agent notices. Produces a `dependence_score`. Fun idea, not a priority right now.
+## Backlog / parked
+
+- **Post-rationalization probe** (`bench/iteration/05-post-rationalization-probe.md`): hide or corrupt sources, watch the answer. Produces `dependence_score`. Not a priority.

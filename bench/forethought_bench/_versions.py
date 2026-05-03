@@ -27,4 +27,4 @@ EXTRACTOR = "claude-haiku-4-5-20251001"
 #
 # Eval logs record this version in Task.metadata so future-you can tell
 # whether a regression is real or just a benchmark change.
-BENCHMARK_VERSION = "0.2.0"
+BENCHMARK_VERSION = "0.3.0"

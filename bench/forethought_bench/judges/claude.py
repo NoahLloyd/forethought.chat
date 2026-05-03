@@ -2,7 +2,7 @@
 
 The system prompt is sent with `cache_control: ephemeral` so that judges
 sharing a rubric across many items (citation faithfulness, verbal match,
-boundary classification) get cache hits.
+answer support, claim anchoring, numeric judging) get cache hits.
 """
 
 from __future__ import annotations
