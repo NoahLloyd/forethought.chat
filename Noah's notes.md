@@ -12,13 +12,7 @@ Ran `LOG_DIR=logs/r19_full_baseline_across_all_4_librarian_tracks bash scripts/r
 
 **Composite: 0.878 (best so far, n=18). r16 was 0.834.**
 
-| Track | r16 valid% | r19 valid% | Δ |
-|---|---|---|---|
-| definitions | 94.4 | 92.0 | -2.4pp |
-| claim_recall | 78.9 | 84.2 | +5.3pp |
-| arguments | 72.7 | 92.3 | **+19.6pp** |
-| synthesis | 70.4 | 83.8 | **+13.4pp** |
-| overall | 81 | **89** | **+8pp** |
+Trackr16 valid%r19 valid%Δdefinitions94.492.0-2.4ppclaim_recall78.984.2+5.3pparguments72.792.3+**19.6pp**synthesis70.483.8+**13.4pp**overall81**89+8pp**
 
 Most striking: **fabrication dropped from 10% (15 cases) to 0% across all tracks**. Real-but-unsupportive 3% → 5%, partial 6% → 5%. So the citation discipline rules in r16's prompt rewrite are now landing reliably.
 
