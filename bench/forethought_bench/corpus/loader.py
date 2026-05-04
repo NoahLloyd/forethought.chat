@@ -145,35 +145,42 @@ class Corpus:
         p = passage.strip()
         if not p:
             return None
-        haystack = record.text or record.body
-        if not haystack:
-            return None
-
-        # Cheap exact-substring shortcut.
-        if p in haystack:
-            idx = haystack.index(p)
-            return PassageMatch(
+        # Try both the stripped text and the raw markdown body. Chunks
+        # produced by the indexer keep markdown link syntax (e.g. `[name](url)`),
+        # which `record.text` strips. A passage built from chunk text will
+        # fuzzy-match the body but score below threshold against the stripped
+        # text. Picking the higher score across both candidates keeps citation
+        # grading robust to that normalization mismatch.
+        candidates = [record.text, record.body]
+        best: PassageMatch | None = None
+        for haystack in candidates:
+            if not haystack:
+                continue
+            if p in haystack:
+                idx = haystack.index(p)
+                return PassageMatch(
+                    record_url=record.url,
+                    record_title=record.title,
+                    score=1.0,
+                    matched_excerpt=haystack[idx : idx + len(p)],
+                )
+            score = fuzz.partial_ratio(p, haystack) / 100.0
+            if score < threshold:
+                continue
+            try:
+                align = fuzz.partial_ratio_alignment(p, haystack)
+                excerpt = haystack[align.dest_start : align.dest_end]
+            except Exception:
+                excerpt = haystack[: min(len(haystack), max(len(p) * 2, 200))]
+            candidate = PassageMatch(
                 record_url=record.url,
                 record_title=record.title,
-                score=1.0,
-                matched_excerpt=haystack[idx : idx + len(p)],
+                score=score,
+                matched_excerpt=excerpt,
             )
-
-        # Fuzzy partial match (substring with edit distance).
-        score = fuzz.partial_ratio(p, haystack) / 100.0
-        if score < threshold:
-            return None
-        try:
-            align = fuzz.partial_ratio_alignment(p, haystack)
-            excerpt = haystack[align.dest_start : align.dest_end]
-        except Exception:
-            excerpt = haystack[: min(len(haystack), max(len(p) * 2, 200))]
-        return PassageMatch(
-            record_url=record.url,
-            record_title=record.title,
-            score=score,
-            matched_excerpt=excerpt,
-        )
+            if best is None or candidate.score > best.score:
+                best = candidate
+        return best
 
 
 def _canonicalize_url(url: str) -> str:

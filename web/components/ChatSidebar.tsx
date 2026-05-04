@@ -163,7 +163,7 @@ function SidebarContent({
         aria-label="Forethought.chat: back to welcome screen"
         style={{ lineHeight: 1 }}
       >
-        <ForethoughtMark style={{ width: "26px", height: "26px" }} aria-hidden />
+        <ForethoughtMark style={{ width: "21px", height: "26px" }} aria-hidden />
         <span
           style={{
             fontFamily: "var(--font-display)",

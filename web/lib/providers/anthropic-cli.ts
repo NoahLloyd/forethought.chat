@@ -380,6 +380,7 @@ export async function runAnthropicCli(
     "--no-session-persistence",
   ];
   if (opts.model) argv.push("--model", opts.model);
+  if (opts.effort) argv.push("--effort", opts.effort);
 
   // Subscription billing: drop ANTHROPIC_API_KEY from the child's env so
   // claude can never silently fall back to API billing if both are

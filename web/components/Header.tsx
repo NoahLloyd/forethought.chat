@@ -8,18 +8,16 @@ export function Header() {
         <Link
           href="/"
           aria-label="Forethought.chat: back to chat"
-          className="inline-flex items-center gap-2 text-[var(--color-ink)] hover:text-[var(--color-coral-deep)] transition-colors"
-          style={{ lineHeight: 1 }}
+          className="inline-flex items-center gap-[1px] text-[var(--color-ink)] hover:text-[var(--color-coral-deep)] transition-colors"
+          style={{ lineHeight: 1, fontFamily: "var(--font-display)", fontSize: "24px" }}
         >
           <ForethoughtMark
-            style={{ width: "30px", height: "30px" }}
+            style={{ height: "1cap", width: "auto" }}
             aria-hidden
           />
           <span
             style={{
-              fontFamily: "var(--font-display)",
               fontWeight: 400,
-              fontSize: "24px",
               letterSpacing: "-0.012em",
               lineHeight: 1,
             }}

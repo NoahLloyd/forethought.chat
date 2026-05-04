@@ -305,7 +305,7 @@ const filteredItems = d.matrix
   .filter(r => r.is_latest && (trackFilter === "all tracks" || r.track === trackFilter))
   .sort((a, b) => a.composite - b.composite);
 
-resize(width => Plot.plot({
+display(resize(width => Plot.plot({
   width,
   height: Math.max(120, filteredItems.length * 26 + 50),
   marginLeft: 200,
@@ -336,7 +336,7 @@ resize(width => Plot.plot({
       title: r => `${r.item}  ${r.composite.toFixed(3)}${r.is_best ? "  ★ best ever" : ""}\n${r.track}`,
     })),
   ],
-}))
+})));
 ```
 
 **History heatmap** — each column = one run (oldest → latest), each row = one item
@@ -354,7 +354,7 @@ const hmData = d.matrix.filter(r =>
 
 const runNames = d.runs.map(r => r.name);
 
-resize(width => Plot.plot({
+display(resize(width => Plot.plot({
   width,
   height: hmItems.length * 22 + 56,
   marginLeft: 190,
@@ -399,7 +399,7 @@ resize(width => Plot.plot({
       title: r => `${r.item}  ${r.composite.toFixed(3)}${r.is_best ? "  ★" : ""}\n${r.run_short} ${r.run_label}`,
     })),
   ],
-}))
+})))
 ```
 
 </div>
@@ -421,7 +421,7 @@ const citeLatest = d.track_rows.flatMap(r => [
   { track: r.track, kind: "Fabricated",   pct: r.fab_pct   ?? 0 },
 ]);
 
-resize(width => Plot.plot({
+display(resize(width => Plot.plot({
   width,
   height: tracks.length * 44 + 60,
   marginLeft: 110,
@@ -451,13 +451,13 @@ resize(width => Plot.plot({
       fill: r => (r.valid_pct ?? 0) >= 40 ? "#4ade80" : "#fb923c",
     }),
   ],
-}))
+})));
 ```
 
 **Valid cite% over time**
 
 ```js
-resize(width => Plot.plot({
+display(resize(width => Plot.plot({
   width, height: 180,
   marginLeft: 42, marginBottom: 28,
   style: { background: "transparent" },
@@ -482,13 +482,13 @@ resize(width => Plot.plot({
       title: r => `${r.track}\nvalid ${(r.valid_rate * 100).toFixed(1)}%  fab ${((r.fab_rate ?? 0) * 100).toFixed(1)}%  unsup ${((r.unsup_rate ?? 0) * 100).toFixed(1)}%\n${r.run_short} ${r.run_label}`,
     })),
   ],
-}))
+})));
 ```
 
 **Answer support over time** — fraction of answer claims backed by cited evidence (higher = better)
 
 ```js
-resize(width => Plot.plot({
+display(resize(width => Plot.plot({
   width, height: 180,
   marginLeft: 42, marginBottom: 28,
   style: { background: "transparent" },
@@ -514,7 +514,7 @@ resize(width => Plot.plot({
       title: r => `${r.track}  ans sup ${r.ans_sup.toFixed(3)}\n${r.run_short} ${r.run_label}`,
     })),
   ],
-}))
+})));
 ```
 
 </div>
@@ -534,7 +534,7 @@ const histRows = [...d.runs].reverse().map(r => ({
   ...Object.fromEntries(tracks.map(t => [t, r.tracks[t]?.composite ?? null])),
 }));
 
-Inputs.table(histRows, {
+display(Inputs.table(histRows, {
   columns: ["#", "label", "date", "v", ...tracks, "overall"],
   header: { "#": "#", label: "Run", date: "Date", v: "v", overall: "Overall" },
   format: {
@@ -543,7 +543,7 @@ Inputs.table(histRows, {
   },
   rows: 20,
   width: { "#": 36, date: 80, v: 44, overall: 72 },
-})
+}))
 ```
 
 </div>

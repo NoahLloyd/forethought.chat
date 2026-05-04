@@ -71,8 +71,7 @@ export function ForethoughtMark({
 }) {
   return (
     <svg
-      viewBox="0 0 90 133"
-      preserveAspectRatio="xMidYMid meet"
+      viewBox="0 7.58 73.59 89.36"
       fill="currentColor"
       className={className}
       style={style}

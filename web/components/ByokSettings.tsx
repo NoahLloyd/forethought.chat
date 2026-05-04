@@ -3,13 +3,16 @@
 import { useEffect, useState } from "react";
 import {
   DEFAULT_MODEL,
-  PROVIDER_KEY_HOST,
+  DEFAULT_SUB_CONFIG,
+  EFFORT_LEVELS,
   PROVIDER_KEY_URL,
   PROVIDER_LABELS,
   PROVIDER_MODELS,
   PROVIDERS,
   type ByokState,
+  type Effort,
   type Provider,
+  type SubConfig,
 } from "@/lib/providers/types";
 import { AnthropicMark, GoogleMark, OpenAIMark } from "./icons";
 
@@ -45,27 +48,45 @@ function initialForm(state: ByokState): FormState {
   return out as FormState;
 }
 
+const EFFORT_HINTS: Record<Effort, string> = {
+  low: "Minimal thinking, fastest responses.",
+  medium: "Light thinking for straightforward questions.",
+  high: "Standard extended thinking.",
+  xhigh: "Extra thinking for complex questions.",
+  max: "Maximum thinking budget.",
+};
+
 export function ByokSettings({
   open,
   state,
   onClose,
   onSave,
+  cliAvailable,
+  subConfig,
+  onSubSave,
 }: {
   open: boolean;
   state: ByokState;
   onClose: () => void;
   onSave: (next: ByokState) => void;
+  cliAvailable: boolean;
+  subConfig: SubConfig;
+  onSubSave: (next: SubConfig) => void;
 }) {
   const [form, setForm] = useState<FormState>(() => initialForm(state));
   const [active, setActive] = useState<Provider | null>(state.active);
   const [reveal, setReveal] = useState<Partial<Record<Provider, boolean>>>({});
+  const [subModel, setSubModel] = useState(subConfig.model);
+  const [subEffort, setSubEffort] = useState<Effort>(subConfig.effort);
 
   useEffect(() => {
     if (!open) return;
     setForm(initialForm(state));
     setActive(state.active);
     setReveal({});
-  }, [open, state]);
+    setSubModel(subConfig.model);
+    setSubEffort(subConfig.effort);
+  }, [open, state, subConfig]);
 
   useEffect(() => {
     if (!open) return;
@@ -99,9 +120,9 @@ export function ByokSettings({
         next.keys[p] = { apiKey: trimmed, model: entry.model };
       }
     }
-    // Only honor `active` if its key actually exists.
     next.active = active && next.keys[active] ? active : null;
     onSave(next);
+    onSubSave({ model: subModel, effort: subEffort });
     onClose();
   };
 
@@ -159,35 +180,111 @@ export function ByokSettings({
           on each chat request, never logged.
         </p>
 
-        {/* Default-key callout: tells the user what they get for free
-            when no Active provider is set. */}
-        <div className="rounded-[10px] border border-[var(--color-rule-soft)] bg-[var(--color-paper-deep)]/40 px-3 py-2.5 mb-4 text-[12px] leading-snug text-[var(--color-ink-muted)]"
-             style={{ fontFamily: "var(--font-sans)" }}
-        >
-          <div className="flex items-baseline justify-between gap-3 mb-1">
-            <span
-              className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-ink-faint)]"
-              style={{ fontFamily: "var(--font-mono)" }}
+        {/* Subscription mode panel — shown when the local claude CLI is on PATH */}
+        {cliAvailable ? (
+          <div className="rounded-[10px] border border-[var(--color-ink)]/20 bg-[var(--color-paper-deep)]/40 px-3.5 py-3 mb-4">
+            <div className="flex items-center gap-2 mb-2.5">
+              <span
+                className="text-[14px] text-[var(--color-ink)]"
+                style={{ fontFamily: "var(--font-display)", fontWeight: 500 }}
+              >
+                Subscription
+              </span>
+              <span
+                className="inline-flex items-center px-1.5 h-[16px] rounded text-[10px] text-[var(--color-coral-deep)] bg-[var(--color-coral-tint)]/40"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                local · no key needed
+              </span>
+            </div>
+
+            <label className="block mb-2.5">
+              <span
+                className="block text-[10px] uppercase tracking-[0.16em] text-[var(--color-ink-faint)] mb-1"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                Model
+              </span>
+              <select
+                value={subModel}
+                onChange={(e) => setSubModel(e.target.value)}
+                className="w-full h-9 px-2 rounded-[8px] bg-[var(--color-paper)] border border-[var(--color-rule)] text-[13px] text-[var(--color-ink)]"
+                style={{ fontFamily: "var(--font-sans)" }}
+              >
+                {PROVIDER_MODELS.anthropic.map((m) => (
+                  <option key={m.id} value={m.id}>
+                    {m.label}
+                  </option>
+                ))}
+              </select>
+            </label>
+
+            <div>
+              <span
+                className="block text-[10px] uppercase tracking-[0.16em] text-[var(--color-ink-faint)] mb-1.5"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                Effort
+              </span>
+              <div className="flex gap-1.5">
+                {EFFORT_LEVELS.map((e) => (
+                  <button
+                    key={e}
+                    type="button"
+                    onClick={() => setSubEffort(e)}
+                    title={EFFORT_HINTS[e]}
+                    className={`flex-1 h-8 rounded-[8px] text-[12px] transition-colors ${
+                      subEffort === e
+                        ? "bg-[var(--color-ink)] text-[var(--color-paper)]"
+                        : "bg-[var(--color-paper)] border border-[var(--color-rule)] text-[var(--color-ink-muted)] hover:text-[var(--color-ink)]"
+                    }`}
+                    style={{ fontFamily: "var(--font-mono)" }}
+                  >
+                    {e}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <p
+              className="mt-2.5 text-[11.5px] text-[var(--color-ink-muted)] leading-snug"
+              style={{ fontFamily: "var(--font-sans)" }}
             >
-              Default · no key required
-            </span>
-            <span
-              className="text-[10.5px] text-[var(--color-coral-deep)]"
-              style={{ fontFamily: "var(--font-mono)" }}
-            >
-              Claude Sonnet 4.6
-            </span>
+              Used when no API key is active. Runs on your local{" "}
+              <code className="text-[10.5px] bg-[var(--color-paper-deep)] px-1 rounded">
+                claude
+              </code>{" "}
+              subscription — never billed to an API key.
+            </p>
           </div>
-          <p>
-            Leave every provider below empty (or pick{" "}
-            <span className="italic">Use server default</span>) and your
-            messages run on the project&rsquo;s own Anthropic key, set to Claude
-            Sonnet 4.6, the same model the rest of the app is tuned for. No
-            sign-up, but it&rsquo;s shared with everyone using the site, so
-            adding your own key gives you higher throughput, longer sessions,
-            and access to other providers.
-          </p>
-        </div>
+        ) : (
+          /* Default-key callout when no CLI is present */
+          <div className="rounded-[10px] border border-[var(--color-rule-soft)] bg-[var(--color-paper-deep)]/40 px-3 py-2.5 mb-4 text-[12px] leading-snug text-[var(--color-ink-muted)]"
+               style={{ fontFamily: "var(--font-sans)" }}
+          >
+            <div className="flex items-baseline justify-between gap-3 mb-1">
+              <span
+                className="text-[10px] uppercase tracking-[0.16em] text-[var(--color-ink-faint)]"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                Default · no key required
+              </span>
+              <span
+                className="text-[10.5px] text-[var(--color-coral-deep)]"
+                style={{ fontFamily: "var(--font-mono)" }}
+              >
+                Claude Sonnet 4.6
+              </span>
+            </div>
+            <p>
+              Leave every provider below empty (or pick{" "}
+              <span className="italic">Use server default</span>) and your
+              messages run on the project&rsquo;s own Anthropic key, set to
+              Claude Sonnet 4.6. No sign-up, but it&rsquo;s shared with
+              everyone using the site.
+            </p>
+          </div>
+        )}
 
         <div className="space-y-3">
           {PROVIDERS.map((p) => {
@@ -214,19 +311,28 @@ export function ByokSettings({
                       onChange={() => setActive(p)}
                       className="accent-[var(--color-coral)]"
                     />
-                    <ProviderIcon
-                      provider={p}
-                      className="w-4 h-4 text-[var(--color-ink)]"
-                    />
-                    <span
-                      className="text-[14px] text-[var(--color-ink)]"
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontWeight: 500,
-                      }}
+                    <a
+                      href={PROVIDER_KEY_URL[p]}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-[var(--color-ink)] hover:text-[var(--color-coral-deep)] transition-colors"
+                      onClick={(e) => e.stopPropagation()}
                     >
-                      {PROVIDER_LABELS[p]}
-                    </span>
+                      <ProviderIcon
+                        provider={p}
+                        className="w-4 h-4"
+                      />
+                      <span
+                        className="text-[14px]"
+                        style={{
+                          fontFamily: "var(--font-display)",
+                          fontWeight: 500,
+                        }}
+                      >
+                        {PROVIDER_LABELS[p]}
+                      </span>
+                      <svg viewBox="0 0 12 12" className="w-2.5 h-2.5 opacity-50" fill="none" stroke="currentColor" strokeWidth={1.4} strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M3 3h6v6"/><path d="M3 9l6-6"/></svg>
+                    </a>
                     {isActive ? (
                       <span
                         className="inline-flex items-center px-1.5 h-[16px] rounded text-[10px] text-[var(--color-coral-deep)] bg-[var(--color-coral-tint)]/40"
@@ -304,21 +410,6 @@ export function ByokSettings({
                   </select>
                 </label>
 
-                <p
-                  className="mt-1.5 text-[11px] text-[var(--color-ink-faint)]"
-                  style={{ fontFamily: "var(--font-sans)" }}
-                >
-                  Get one at{" "}
-                  <a
-                    href={PROVIDER_KEY_URL[p]}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-[var(--color-coral-deep)] underline decoration-[var(--color-coral)] decoration-1 underline-offset-[2px] hover:text-[var(--color-ink)] transition-colors"
-                  >
-                    {PROVIDER_KEY_HOST[p]}
-                    <span aria-hidden> ↗</span>
-                  </a>
-                </p>
               </div>
             );
           })}

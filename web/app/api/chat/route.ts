@@ -4,11 +4,14 @@ import { chunksForUrl, getCatalog, search } from "@/lib/search";
 import {
   DEFAULT_MODEL,
   DEFAULT_PROVIDER,
+  DEFAULT_SUB_CONFIG,
   PROVIDERS,
   isClaudeCliAvailable,
   runAgent,
   type ByokConfig,
+  type Effort,
   type Provider,
+  type SubConfig,
 } from "@/lib/providers";
 import type {
   ArticleMention,
@@ -52,11 +55,25 @@ function parseByok(raw: unknown): ByokConfig | null {
   return null;
 }
 
+const VALID_EFFORTS = new Set(["low", "medium", "high", "xhigh", "max"]);
+
+function parseSubConfig(raw: unknown): SubConfig {
+  if (!raw || typeof raw !== "object") return DEFAULT_SUB_CONFIG;
+  const o = raw as Record<string, unknown>;
+  return {
+    model: typeof o.model === "string" && o.model.trim() ? o.model.trim() : DEFAULT_SUB_CONFIG.model,
+    effort: VALID_EFFORTS.has(o.effort as string)
+      ? (o.effort as Effort)
+      : DEFAULT_SUB_CONFIG.effort,
+  };
+}
+
 export async function POST(req: Request) {
   let body: {
     messages?: ChatMessage[];
     mentions?: ArticleMention[];
     byok?: unknown;
+    subConfig?: unknown;
   };
   try {
     body = await req.json();
@@ -94,8 +111,9 @@ export async function POST(req: Request) {
   }
 
   const byok = parseByok(body.byok);
+  const sub = parseSubConfig(body.subConfig);
   const provider: Provider = byok?.provider ?? DEFAULT_PROVIDER;
-  const model = byok?.model ?? DEFAULT_MODEL[provider];
+  const model = byok?.model ?? (provider === "anthropic" && !byok ? sub.model : DEFAULT_MODEL[provider]);
   const apiKey =
     byok?.apiKey ??
     (provider === "anthropic" ? process.env.ANTHROPIC_API_KEY ?? "" : "");
@@ -211,6 +229,7 @@ export async function POST(req: Request) {
           search: searchCallback,
           emit: send,
           abortSignal: req.signal,
+          effort: byok ? undefined : sub.effort,
         });
 
         if (result.truncated) {

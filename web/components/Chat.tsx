@@ -17,13 +17,34 @@ import { ChatSidebar, type ChatSummary } from "./ChatSidebar";
 import { ByokSettings } from "./ByokSettings";
 import { AssistantTurn, UserBubble, type ChatTurn } from "./Message";
 import {
+  DEFAULT_SUB_CONFIG,
   EMPTY_BYOK_STATE,
   type ByokConfig,
   type ByokState,
   type Provider,
+  type SubConfig,
 } from "@/lib/providers/types";
 
 const BYOK_STORAGE_KEY = "forethought.chat.byok.v2";
+const SUB_STORAGE_KEY = "forethought.chat.sub.v1";
+
+function loadSubConfig(): SubConfig {
+  if (typeof window === "undefined") return DEFAULT_SUB_CONFIG;
+  try {
+    const raw = window.localStorage.getItem(SUB_STORAGE_KEY);
+    if (!raw) return DEFAULT_SUB_CONFIG;
+    const parsed = JSON.parse(raw) as Partial<SubConfig>;
+    return {
+      model: typeof parsed.model === "string" ? parsed.model : DEFAULT_SUB_CONFIG.model,
+      effort:
+        ["low", "medium", "high", "xhigh", "max"].includes(parsed.effort as string)
+          ? (parsed.effort as SubConfig["effort"])
+          : DEFAULT_SUB_CONFIG.effort,
+    };
+  } catch {
+    return DEFAULT_SUB_CONFIG;
+  }
+}
 
 function loadByok(): ByokState {
   if (typeof window === "undefined") return EMPTY_BYOK_STATE;
@@ -85,6 +106,8 @@ export function Chat() {
   const [sessionId, setSessionId] = useState<string | null>(null);
   const [byok, setByok] = useState<ByokState>(EMPTY_BYOK_STATE);
   const [byokOpen, setByokOpen] = useState(false);
+  const [cliAvailable, setCliAvailable] = useState(false);
+  const [subConfig, setSubConfig] = useState<SubConfig>(DEFAULT_SUB_CONFIG);
   const abortRef = useRef<AbortController | null>(null);
   const transcriptRef = useRef<HTMLDivElement | null>(null);
   const lastSavedRef = useRef<string>("");
@@ -128,9 +151,16 @@ export function Chat() {
     void refreshChats();
   }, [refreshChats]);
 
-  // Hydrate BYOK state on mount.
+  // Hydrate BYOK + subscription state and probe CLI availability on mount.
   useEffect(() => {
     setByok(loadByok());
+    setSubConfig(loadSubConfig());
+    fetch("/api/transport")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: { cli?: boolean } | null) => {
+        if (data?.cli) setCliAvailable(true);
+      })
+      .catch(() => {});
   }, []);
 
   const persistByok = useCallback((next: ByokState) => {
@@ -145,6 +175,15 @@ export function Chat() {
       }
     } catch {
       // localStorage unavailable; in-memory state still applies.
+    }
+  }, []);
+
+  const persistSubConfig = useCallback((next: SubConfig) => {
+    setSubConfig(next);
+    try {
+      window.localStorage.setItem(SUB_STORAGE_KEY, JSON.stringify(next));
+    } catch {
+      // ignore
     }
   }, []);
 
@@ -318,6 +357,7 @@ export function Chat() {
             messages: history,
             mentions: activeMentions,
             byok: wireByok ?? undefined,
+            subConfig: wireByok ? undefined : subConfig,
           }),
           signal: ac.signal,
         });
@@ -400,7 +440,7 @@ export function Chat() {
         abortRef.current = null;
       }
     },
-    [state.turns, streaming, mentions, byok],
+    [state.turns, streaming, mentions, byok, subConfig],
   );
 
   const stop = useCallback(() => {
@@ -491,6 +531,9 @@ export function Chat() {
         state={byok}
         onClose={() => setByokOpen(false)}
         onSave={persistByok}
+        cliAvailable={cliAvailable}
+        subConfig={subConfig}
+        onSubSave={persistSubConfig}
       />
       <div className="relative flex flex-col flex-1 min-w-0">
       <div

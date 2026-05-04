@@ -165,6 +165,8 @@ export type RunAgentOpts = {
   search: SearchCallback;
   emit: StreamEmit;
   abortSignal?: AbortSignal;
+  /** Passed as --effort to the CLI provider; ignored by API providers. */
+  effort?: Effort;
 };
 
 export type RunAgentResult = {
@@ -174,7 +176,21 @@ export type RunAgentResult = {
   truncated: boolean;
 };
 
-export const MAX_ITERS = 6;
+export const MAX_ITERS = 30;
+
+export type Effort = "low" | "medium" | "high" | "xhigh" | "max";
+
+export const EFFORT_LEVELS: Effort[] = ["low", "medium", "high", "xhigh", "max"];
+
+export type SubConfig = {
+  model: string;
+  effort: Effort;
+};
+
+export const DEFAULT_SUB_CONFIG: SubConfig = {
+  model: DEFAULT_MODEL.anthropic,
+  effort: "high",
+};
 export const SEARCH_DEFAULT_K = 6;
 export const SEARCH_MAX_K = 10;
 
