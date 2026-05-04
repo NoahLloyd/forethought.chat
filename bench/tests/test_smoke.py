@@ -176,6 +176,44 @@ def test_extract_citations_from_markers_threads_snippets() -> None:
     assert cits[1].passage and "8X" in cits[1].passage
 
 
+def test_extract_citations_prefers_chunk_text_over_snippet() -> None:
+    """When source records carry a `chunk_text` field (the full chunk the
+    agent saw), prefer it for Citation.passage so the support judge grades
+    against the same evidence the agent had access to. Falling back to
+    `snippet` keeps backward compatibility with older source emitters."""
+    sources = [
+        {
+            "marker": 1,
+            "url": "https://example.com/a",
+            "title": "Paper A",
+            "snippet": "The chip technology feedback loop by itself is probably "
+                       "enough to sustain accelerating progress.",
+            "chunk_text": "The chip technology feedback loop by itself is probably "
+                          "enough to sustain accelerating progress (~65%). The "
+                          "remaining 35% comes from algorithmic improvements that "
+                          "compound across generations.",
+        },
+        {
+            "marker": 2,
+            "url": "https://example.com/b",
+            "title": "Paper B",
+            "snippet": "Britain's share of world GDP increased 8X.",
+        },
+    ]
+    prose = (
+        "The chip-tech feedback loop carries ~65% [1]. "
+        "Britain's GDP share grew 8X [2]."
+    )
+    cits = extract_citations_from_markers(prose, sources)
+    assert len(cits) == 2
+    # Marker 1 has chunk_text; passage should be the full chunk (incl. 35%).
+    assert cits[0].passage is not None
+    assert "35%" in cits[0].passage
+    # Marker 2 has only snippet; passage should fall back to snippet.
+    assert cits[1].passage is not None
+    assert "8X" in cits[1].passage
+
+
 def test_extract_citations_dedupes_repeated_markers() -> None:
     sources = [{"marker": 3, "url": "u", "title": "t", "snippet": "snip"}]
     prose = "Same claim [3]. Different claim with the same source [3]."

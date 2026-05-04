@@ -55,6 +55,10 @@ type SourceRecord = {
   publishedAt: string | null;
   section: string | null;
   snippet: string;
+  // Full chunk text the agent saw in the search-result block. The bench
+  // grades faithfulness against this (not the truncated snippet), so the
+  // citation judge can see all the evidence the agent had access to.
+  chunk_text: string;
   source?: string;
 };
 
@@ -140,6 +144,7 @@ async function main(): Promise<void> {
         publishedAt: chunk.publishedAt,
         section: chunk.section,
         snippet: snippet(chunk.text),
+        chunk_text: chunk.text,
         source: chunk.source,
       });
     }

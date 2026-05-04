@@ -106,8 +106,14 @@ _SENTENCE_SPLIT_RE = re.compile(r"(?<=[.!?])\s+")
 def extract_citations_from_markers(
     prose: str, sources: list[dict[str, Any]]
 ) -> list[Citation]:
-    """Parse [N] markers from prose and produce Citations using the snippets
-    the chat app already retrieved."""
+    """Parse [N] markers from prose and produce Citations using the chunk
+    text the chat app already retrieved.
+
+    Citation.passage is set to the FULL chunk text (not the truncated
+    snippet) when available, so the citation-faithfulness judge grades
+    against the same evidence the agent actually saw. Older source records
+    that only have `snippet` fall back to that.
+    """
     by_marker: dict[int, dict[str, Any]] = {}
     for s in sources:
         marker = s.get("marker")
@@ -137,7 +143,7 @@ def extract_citations_from_markers(
                 Citation(
                     url=sd.get("url"),
                     title=sd.get("title"),
-                    passage=sd.get("snippet"),
+                    passage=sd.get("chunk_text") or sd.get("snippet"),
                     supports=claim,
                 )
             )
