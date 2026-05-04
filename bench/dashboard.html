@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>forethought-bench dashboard</title>
+<style>
+:root {
+  --bg: #fbfaf4;
+  --ink: #2f2a26;
+  --mu: #7a7068;
+  --rule: #e6e0d4;
+  --up: #16a34a; --up-bg: #dcfce7; --up-border: #86efac;
+  --dn: #dc2626; --dn-bg: #fee2e2; --dn-border: #fca5a5;
+  --fl: #92400e; --fl-bg: #fef3c7; --fl-border: #fde68a;
+  --card: #fff;
+  --indigo: #6366f1;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 24px 28px 80px;
+}
+
+/* ── Header ── */
+.page-header { margin-bottom: 6px; }
+h1 { font-size: 24px; font-weight: 800; letter-spacing: -0.4px; }
+.meta { color: var(--mu); font-size: 12.5px; margin: 4px 0 0; }
+.meta code { background: var(--rule); padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }
+
+/* ── Tooltip system ── */
+.tip {
+  cursor: help;
+  border-bottom: 1.5px dotted var(--mu);
+  position: relative;
+}
+.tip::after {
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e1b18;
+  color: #f5f3ee;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-radius: 7px;
+  width: max-content;
+  max-width: 320px;
+  white-space: normal;
+  z-index: 200;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  box-shadow: 0 4px 16px rgba(0,0,0,.22);
+  text-align: left;
+}
+.tip:hover::after { opacity: 1; }
+
+/* ── Banner ── */
+.banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin: 18px 0 20px;
+  font-size: 16px;
+}
+.banner-improve { background: var(--up-bg);  color: var(--up);  border: 1.5px solid var(--up-border); }
+.banner-regress  { background: var(--dn-bg);  color: var(--dn);  border: 1.5px solid var(--dn-border); }
+.banner-flat     { background: var(--fl-bg);  color: var(--fl);  border: 1.5px solid var(--fl-border); }
+.banner-icon  { font-size: 28px; line-height: 1; flex-shrink: 0; }
+.banner-msg   { font-weight: 700; font-size: 17px; }
+.banner-detail { font-size: 12.5px; font-family: Menlo, Consolas, monospace; opacity: 0.85; }
+
+/* ── KPI cards ── */
+.kpi-row { display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }
+.kpi {
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 12px 18px;
+  min-width: 130px;
+}
+.kpi-label { font-size: 11px; color: var(--mu); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 2px; }
+.kpi-value { font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.kpi-sub   { font-size: 11.5px; color: var(--mu); margin-top: 1px; }
+
+/* ── Collapsible sections ── */
+.section {
+  margin-top: 20px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.section summary {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 13px 16px;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(0,0,0,.018);
+  border-bottom: 1px solid transparent;
+  transition: background 0.1s;
+  list-style: none;
+}
+.section summary::-webkit-details-marker { display: none; }
+.section[open] summary { border-bottom-color: var(--rule); }
+.section summary:hover { background: rgba(0,0,0,.035); }
+.section-toggle {
+  font-size: 10px;
+  color: var(--mu);
+  width: 16px;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}
+.section[open] .section-toggle { transform: rotate(90deg); }
+.section-title {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  flex: 1;
+}
+.section-hint {
+  font-size: 12px;
+  color: var(--mu);
+  font-weight: 400;
+}
+.section-body { padding: 16px; }
+.section-body.no-pad { padding: 0; }
+
+/* ── Regen box ── */
+.regen-body {
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.regen-body p { margin-bottom: 8px; }
+.regen-body p:last-child { margin-bottom: 0; }
+.regen-body code {
+  background: #1e1b18;
+  color: #e8e3da;
+  padding: 8px 14px;
+  border-radius: 6px;
+  display: block;
+  font-family: Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  margin: 6px 0;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+/* ── Score colour legend ── */
+.score-legend {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}
+.leg-label { color: var(--mu); margin-right: 2px; }
+.leg {
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  cursor: default;
+  border: 1px solid rgba(0,0,0,.08);
+}
+
+/* ── Chart ── */
+.chart-scroll { overflow-x: auto; }
+
+/* ── Tables (shared) ── */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: middle; }
+th { background: rgba(0,0,0,.025); font-size: 11.5px; font-weight: 600; color: var(--mu); cursor: default; }
+th[title] { cursor: help; border-bottom: 1.5px dotted var(--mu); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; font-family: Menlo, Consolas, monospace; font-size: 12.5px; }
+td.muted { color: var(--mu); }
+.sc { font-weight: 700; }
+.delta-up { color: var(--up);  font-weight: 700; }
+.delta-dn { color: var(--dn);  font-weight: 700; }
+.delta-fl { color: var(--mu); }
+.best-badge {
+  display: inline-block;
+  font-size: 10.5px;
+  background: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #fde047;
+  border-radius: 4px;
+  padding: 0 6px;
+  line-height: 20px;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+.tn { font-weight: 700; font-size: 14px; }
+
+/* ── Heatmap ── */
+.heatmap-scroll { overflow-x: auto; }
+.heatmap { width: auto; min-width: 100%; }
+.heatmap th {
+  writing-mode: vertical-rl;
+  text-align: left;
+  padding: 8px 3px;
+  font-size: 10.5px;
+  min-width: 24px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--rule);
+}
+.heatmap th.col-lat { background: #eef2ff; }
+.heatmap td.hc {
+  text-align: center;
+  padding: 4px 5px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-family: Menlo, Consolas, monospace;
+  white-space: nowrap;
+  cursor: default;
+}
+.heatmap td.hlat  { outline: 2px solid var(--indigo); outline-offset: -2px; }
+.heatmap td.hm    { background: repeating-linear-gradient(45deg,#edeae2 0 5px,transparent 5px 10px); }
+.heatmap td.hi    { font-family: Menlo, Consolas, monospace; font-size: 11.5px; color: #555; white-space: nowrap; }
+.heatmap td.ht    { color: #bbb; font-size: 11px; white-space: nowrap; }
+
+/* ── History table ── */
+.rn  { font-family: Menlo, Consolas, monospace; font-size: 11.5px; }
+.ts  { font-size: 12.5px; color: var(--mu); }
+.row-lat { background: #f4f6ff; }
+.row-lat td { font-weight: 600; }
+</style>
+</head><body>
+
+<div class="page-header">
+  <h1>forethought-bench</h1>
+  <p class="meta">
+    17 runs &middot; bench v0.2.0, 0.3.0 &middot;
+    latest: <code>iter_a1a2a3_v3c_20260503-192015</code> &middot;
+    generated: 2026-05-04 12:19 UTC
+  </p>
+</div>
+
+<div class='banner banner-improve'><span class='banner-icon'>↑</span><span class='banner-msg'>Overall +0.006 vs previous run</span><span class='banner-detail'>(definitions -0.019↓ · claim_recall +0.016↑ · synthesis +0.050↑)</span></div>
+
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-label">Latest overall</div>
+    <div class="kpi-value">0.718</div>
+    <div class="kpi-sub">18 items &middot; librarian</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">vs Previous run</div>
+    <div class="kpi-value" style="color:#16a34a">+0.006</div>
+    <div class="kpi-sub" title="iter_a1a2a3_v3b_20260503-191101">iter_a1a2a3_v3b_20260503-1…</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Best ever</div>
+    <div class="kpi-value">1.000</div>
+    <div class="kpi-sub">across 17 runs</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Bench version</div>
+    <div class="kpi-value" style="font-size:22px">0.3.0</div>
+    <div class="kpi-sub">21d0fe88 (item fingerprint)</div>
+  </div>
+</div>
+
+<!-- Regeneration info -->
+<details class="section">
+  <summary>
+    <span class="section-toggle">▶</span>
+    <span class="section-title">How to regenerate this dashboard</span>
+    <span class="section-hint">run after each bench run to keep it current</span>
+  </summary>
+  <div class="regen-body">
+    <p>This file is generated from the <code style="display:inline;background:var(--rule);color:inherit;padding:1px 5px;border-radius:3px;font-size:12px">bench/logs/</code> eval logs — one <code style="display:inline;background:var(--rule);color:inherit;padding:1px 5px;border-radius:3px;font-size:12px">.eval</code> file per track per run. Regenerate any time by running:</p>
+    <code>cd bench &amp;&amp; .venv/bin/python scripts/history.py dashboard --out dashboard.html</code>
+    <p>To append it automatically after a bench run, add the line above to the end of <code style="display:inline;background:var(--rule);color:inherit;padding:1px 5px;border-radius:3px;font-size:12px">scripts/run_librarian.sh</code>. The dashboard reads all run directories under <code style="display:inline;background:var(--rule);color:inherit;padding:1px 5px;border-radius:3px;font-size:12px">logs/</code> each time, so older history is always included automatically.</p>
+  </div>
+</details>
+
+<!-- Composite over time chart -->
+<details class="section" open>
+  <summary>
+    <span class="section-toggle">▶</span>
+    <span class="section-title">Composite over time</span>
+    <span class="section-hint">per-track scores across all 17 runs — hover dots for score &amp; run name</span>
+  </summary>
+  <div class="section-body">
+    <div class="chart-scroll"><svg xmlns="http://www.w3.org/2000/svg" width="880" height="310" viewBox="0 0 880 310" font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="11"><defs><style>.gl{stroke:#e6e0d4;stroke-dasharray:3 3}.ax{stroke:#c0b8ae}.lbl{fill:#8a7f76}</style></defs><line class="gl" x1="50" y1="199.0" x2="856" y2="199.0"/><text class="lbl" x="44.0" y="203.0" text-anchor="end">0.25</text><line class="gl" x1="50" y1="142.0" x2="856" y2="142.0"/><text class="lbl" x="44.0" y="146.0" text-anchor="end">0.50</text><line class="gl" x1="50" y1="85.0" x2="856" y2="85.0"/><text class="lbl" x="44.0" y="89.0" text-anchor="end">0.75</text><line class="gl" x1="50" y1="28.0" x2="856" y2="28.0"/><text class="lbl" x="44.0" y="32.0" text-anchor="end">1.00</text><line class="ax" x1="50" y1="28" x2="50" y2="256"/><line class="ax" x1="50" y1="256.0" x2="856" y2="256.0"/><text class="lbl" x="50.0" y="269.0" text-anchor="end" transform="rotate(-40,50.0,269.0)">05-03</text><text class="lbl" x="100.4" y="269.0" text-anchor="end" transform="rotate(-40,100.4,269.0)">05-03</text><text class="lbl" x="150.8" y="269.0" text-anchor="end" transform="rotate(-40,150.8,269.0)">05-03</text><text class="lbl" x="201.1" y="269.0" text-anchor="end" transform="rotate(-40,201.1,269.0)">05-03</text><text class="lbl" x="251.5" y="269.0" text-anchor="end" transform="rotate(-40,251.5,269.0)">05-03</text><text class="lbl" x="301.9" y="269.0" text-anchor="end" transform="rotate(-40,301.9,269.0)">05-03</text><text class="lbl" x="352.2" y="269.0" text-anchor="end" transform="rotate(-40,352.2,269.0)">05-03</text><text class="lbl" x="402.6" y="269.0" text-anchor="end" transform="rotate(-40,402.6,269.0)">05-03</text><text class="lbl" x="453.0" y="269.0" text-anchor="end" transform="rotate(-40,453.0,269.0)">05-03</text><text class="lbl" x="503.4" y="269.0" text-anchor="end" transform="rotate(-40,503.4,269.0)">05-03</text><text class="lbl" x="553.8" y="269.0" text-anchor="end" transform="rotate(-40,553.8,269.0)">05-03</text><text class="lbl" x="604.1" y="269.0" text-anchor="end" transform="rotate(-40,604.1,269.0)">05-03</text><text class="lbl" x="654.5" y="269.0" text-anchor="end" transform="rotate(-40,654.5,269.0)">05-03</text><text class="lbl" x="704.9" y="269.0" text-anchor="end" transform="rotate(-40,704.9,269.0)">05-03</text><text class="lbl" x="755.2" y="269.0" text-anchor="end" transform="rotate(-40,755.2,269.0)">05-03</text><text class="lbl" x="805.6" y="269.0" text-anchor="end" transform="rotate(-40,805.6,269.0)">05-03</text><text class="lbl" x="856.0" y="269.0" text-anchor="end" transform="rotate(-40,856.0,269.0)">05-03</text><line x1="604.1" y1="28" x2="604.1" y2="256" stroke="#b0a898" stroke-width="1" stroke-dasharray="4 3"/><text class="lbl" x="607.1" y="37" fill="#b0a898">v0.3.0</text><polyline points="50.0,111.6 100.4,115.0 150.8,115.0 553.8,85.0 604.1,111.3 755.2,73.9 805.6,85.1 856.0,89.3" stroke="#1f77b4" stroke-width="2.5" fill="none" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/><circle cx="50.0" cy="111.6" r="3.5" fill="#1f77b4"><title>definitions: 0.633
+smoke_test</title></circle><circle cx="100.4" cy="115.0" r="3.5" fill="#1f77b4"><title>definitions: 0.618
+final_run</title></circle><circle cx="150.8" cy="115.0" r="3.5" fill="#1f77b4"><title>definitions: 0.618
+full_definitions</title></circle><circle cx="553.8" cy="85.0" r="3.5" fill="#1f77b4"><title>definitions: 0.750
+auto_def_20260503-135832</title></circle><circle cx="604.1" cy="111.3" r="3.5" fill="#1f77b4"><title>definitions: 0.635
+iter_a1a2a3_20260503-172329</title></circle><circle cx="755.2" cy="73.9" r="3.5" fill="#1f77b4"><title>definitions: 0.799
+iter_a1a2a3_v3_20260503-184750</title></circle><circle cx="805.6" cy="85.1" r="3.5" fill="#1f77b4"><title>definitions: 0.750
+iter_a1a2a3_v3b_20260503-191101</title></circle><circle cx="856.0" cy="89.3" r="5.5" fill="#1f77b4" stroke="white" stroke-width="1.5"><title>definitions: 0.731
+iter_a1a2a3_v3c_20260503-192015</title></circle><polyline points="100.4,132.0 251.5,135.8 402.6,132.0 604.1,105.1 654.5,107.6 704.9,82.9 755.2,102.9 805.6,102.6 856.0,99.0" stroke="#ff7f0e" stroke-width="2.5" fill="none" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/><circle cx="100.4" cy="132.0" r="3.5" fill="#ff7f0e"><title>claim_recall: 0.544
+final_run</title></circle><circle cx="251.5" cy="135.8" r="3.5" fill="#ff7f0e"><title>claim_recall: 0.527
+full_claim_recall</title></circle><circle cx="402.6" cy="132.0" r="3.5" fill="#ff7f0e"><title>claim_recall: 0.544
+extended_claim_recall</title></circle><circle cx="604.1" cy="105.1" r="3.5" fill="#ff7f0e"><title>claim_recall: 0.662
+iter_a1a2a3_20260503-172329</title></circle><circle cx="654.5" cy="107.6" r="3.5" fill="#ff7f0e"><title>claim_recall: 0.651
+iter_a1a2a3_v2_20260503-173202</title></circle><circle cx="704.9" cy="82.9" r="3.5" fill="#ff7f0e"><title>claim_recall: 0.759
+librarian_20260503-184644</title></circle><circle cx="755.2" cy="102.9" r="3.5" fill="#ff7f0e"><title>claim_recall: 0.671
+iter_a1a2a3_v3_20260503-184750</title></circle><circle cx="805.6" cy="102.6" r="3.5" fill="#ff7f0e"><title>claim_recall: 0.673
+iter_a1a2a3_v3b_20260503-191101</title></circle><circle cx="856.0" cy="99.0" r="5.5" fill="#ff7f0e" stroke="white" stroke-width="1.5"><title>claim_recall: 0.688
+iter_a1a2a3_v3c_20260503-192015</title></circle><polyline points="100.4,104.5 301.9,104.5 604.1,116.1 755.2,73.1 805.6,102.9 856.0,103.9" stroke="#2ca02c" stroke-width="2.5" fill="none" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/><circle cx="100.4" cy="104.5" r="3.5" fill="#2ca02c"><title>arguments: 0.664
+final_run</title></circle><circle cx="301.9" cy="104.5" r="3.5" fill="#2ca02c"><title>arguments: 0.664
+full_arguments</title></circle><circle cx="604.1" cy="116.1" r="3.5" fill="#2ca02c"><title>arguments: 0.613
+iter_a1a2a3_20260503-172329</title></circle><circle cx="755.2" cy="73.1" r="3.5" fill="#2ca02c"><title>arguments: 0.802
+iter_a1a2a3_v3_20260503-184750</title></circle><circle cx="805.6" cy="102.9" r="3.5" fill="#2ca02c"><title>arguments: 0.671
+iter_a1a2a3_v3b_20260503-191101</title></circle><circle cx="856.0" cy="103.9" r="5.5" fill="#2ca02c" stroke="white" stroke-width="1.5"><title>arguments: 0.667
+iter_a1a2a3_v3c_20260503-192015</title></circle><polyline points="100.4,83.8 201.1,116.9 352.2,83.8 604.1,95.5 755.2,74.8 805.6,83.0 856.0,71.6" stroke="#d62728" stroke-width="2.5" fill="none" stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/><circle cx="100.4" cy="83.8" r="3.5" fill="#d62728"><title>synthesis: 0.755
+final_run</title></circle><circle cx="201.1" cy="116.9" r="3.5" fill="#d62728"><title>synthesis: 0.610
+smoke_synthesis</title></circle><circle cx="352.2" cy="83.8" r="3.5" fill="#d62728"><title>synthesis: 0.755
+full_synthesis</title></circle><circle cx="604.1" cy="95.5" r="3.5" fill="#d62728"><title>synthesis: 0.704
+iter_a1a2a3_20260503-172329</title></circle><circle cx="755.2" cy="74.8" r="3.5" fill="#d62728"><title>synthesis: 0.795
+iter_a1a2a3_v3_20260503-184750</title></circle><circle cx="805.6" cy="83.0" r="3.5" fill="#d62728"><title>synthesis: 0.759
+iter_a1a2a3_v3b_20260503-191101</title></circle><circle cx="856.0" cy="71.6" r="5.5" fill="#d62728" stroke="white" stroke-width="1.5"><title>synthesis: 0.809
+iter_a1a2a3_v3c_20260503-192015</title></circle><rect x="786" y="31" width="12" height="3" fill="#d62728"/><text x="802" y="37" fill="#d62728" font-size="11">synthesis</text><rect x="786" y="46" width="12" height="3" fill="#2ca02c"/><text x="802" y="52" fill="#2ca02c" font-size="11">arguments</text><rect x="786" y="61" width="12" height="3" fill="#ff7f0e"/><text x="802" y="67" fill="#ff7f0e" font-size="11">claim_recall</text><rect x="786" y="76" width="12" height="3" fill="#1f77b4"/><text x="802" y="82" fill="#1f77b4" font-size="11">definitions</text></svg></div>
+  </div>
+</details>
+
+<!-- Per-track breakdown -->
+<details class="section" open>
+  <summary>
+    <span class="section-toggle">▶</span>
+    <span class="section-title">Latest per-track</span>
+    <span class="section-hint">scores from the most recent run vs previous and all-time best — hover track names for what each track tests</span>
+  </summary>
+  <div class="section-body">
+    <div class='score-legend'><span class='leg-label'>Score scale:</span><span class='leg' style='background:#bce4c1' title='Strong'>≥ 0.80</span><span class='leg' style='background:#dcefb4' title='Good'>0.70–0.79</span><span class='leg' style='background:#f9eba7' title='Middling'>0.60–0.69</span><span class='leg' style='background:#f4ca7f' title='Weak'>0.45–0.59</span><span class='leg' style='background:#e89c87' title='Poor'>&lt; 0.45</span></div>
+    <table>
+    <thead><tr>
+      <th>Track</th>
+      <th class="num" title="Number of items scored in this run.">n</th>
+      <th class="num" title="Composite score from the most recent run (n-weighted mean across items in this track).">Latest</th>
+      <th class="num" title="Composite score from the run immediately before the latest.">Previous</th>
+      <th class="num" title="Change from the previous run. Green ↑ = improved by >0.005, red ↓ = regressed by >0.005, grey → = effectively flat.">Δ vs prev</th>
+      <th></th>
+      <th class="num" title="Highest composite this track has ever achieved across all runs on record.">Best ever</th>
+      <th class="num" title="Citation faithfulness: fraction of citations where the cited passage was (a) found in the corpus and (b) actually supported the claim it was attached to. Low means the agent is hallucinating sources or misattributing quotes.">Valid cite%</th>
+      <th class="num" title="Answer support: mean score (0–1) measuring how well the answer's claims are backed by the cited evidence. Low means the agent is asserting things not covered by the sources it cites.">Ans sup</th>
+    </tr></thead>
+    <tbody><tr><td class='tn'><span class='tip' data-tip='Tests exact recall of domain-specific terms defined in the corpus. The agent must define the term accurately and cite the right source passage. Composite = 0.6 verbal_match + 0.2 citation_faithfulness + 0.2 answer_support.'>definitions</span></td><td class='num muted'>6</td><td class='num sc' style='background:#dcefb4'>0.731</td><td class='num muted'>0.750</td><td class='num delta-dn'>-0.019&thinsp;↓</td><td></td><td class='num muted'>0.799</td><td class='num muted'>15.5%</td><td class='num muted'>0.732</td></tr><tr><td class='tn'><span class='tip' data-tip='Tests precise recall of specific factual claims — numeric values or categorical facts — from corpus sources, including preserving hedging language like 'roughly' or 'approximately'. Composite = 0.5 correctness + 0.2 hedge_preservation + 0.15 citation_faithfulness + 0.15 answer_support.'>claim_recall</span></td><td class='num muted'>5</td><td class='num sc' style='background:#f9eba7'>0.688</td><td class='num muted'>0.673</td><td class='num delta-up'>+0.016&thinsp;↑</td><td></td><td class='num muted'>0.759</td><td class='num muted'>25.0%</td><td class='num muted'>0.407</td></tr><tr><td class='tn'><span class='tip' data-tip='Tests reconstruction of structured arguments from corpus texts: the agent must identify all required logical elements of an argument and cite the source. Composite = 0.6 elements_rubric + 0.2 citation_faithfulness + 0.2 answer_support.'>arguments</span></td><td class='num muted'>4</td><td class='num sc' style='background:#f9eba7'>0.667</td><td class='num muted'>0.671</td><td class='num delta-fl'>-0.004&thinsp;→</td><td></td><td class='num muted'>0.802</td><td class='num muted'>26.0%</td><td class='num muted'>0.625</td></tr><tr><td class='tn'><span class='tip' data-tip='Tests synthesis across multiple sources: the agent must draw on several corpus documents, recall all expected citations, integrate them coherently, and cover required elements. Composite = 0.25 citation_recall + 0.25 elements_rubric + 0.20 integration + 0.15 citation_faithfulness + 0.15 answer_support.'>synthesis</span></td><td class='num muted'>3</td><td class='num sc' style='background:#bce4c1'>0.809</td><td class='num muted'>0.759</td><td class='num delta-up'>+0.050&thinsp;↑</td><td><span class='best-badge'>★ new best</span></td><td class='num muted'>0.809</td><td class='num muted'>24.4%</td><td class='num muted'>0.767</td></tr></tbody>
+    </table>
+  </div>
+</details>
+
+<!-- Per-item heatmap -->
+<details class="section" open>
+  <summary>
+    <span class="section-toggle">▶</span>
+    <span class="section-title">Per-item heatmap</span>
+    <span class="section-hint">every item &times; every run — ★ = personal best score, outlined column = latest run, hover cells for exact score</span>
+  </summary>
+  <div class="section-body no-pad">
+    <div class="heatmap-scroll"><table class='heatmap'><thead><tr><th>Track</th><th>Item</th><th title='smoke_test (2026-05-03T12:49:45)'>05-03</th><th title='final_run (2026-05-03T12:53:19)'>05-03</th><th title='full_definitions (2026-05-03T12:53:19)'>05-03</th><th title='smoke_synthesis (2026-05-03T12:56:31)'>05-03</th><th title='full_claim_recall (2026-05-03T13:01:09)'>05-03</th><th title='full_arguments (2026-05-03T13:02:24)'>05-03</th><th title='full_synthesis (2026-05-03T13:07:00)'>05-03</th><th title='extended_claim_recall (2026-05-03T13:13:52)'>05-03</th><th title='stress_climate (2026-05-03T13:21:13)'>05-03</th><th title='auto_smoke_20260503-135628 (2026-05-03T13:56:29)'>05-03</th><th title='auto_def_20260503-135832 (2026-05-03T13:58:33)'>05-03</th><th title='iter_a1a2a3_20260503-172329 (2026-05-03T17:23:31)'>05-03</th><th title='iter_a1a2a3_v2_20260503-173202 (2026-05-03T17:32:03)'>05-03</th><th title='librarian_20260503-184644 (2026-05-03T18:46:45)'>05-03</th><th title='iter_a1a2a3_v3_20260503-184750 (2026-05-03T18:47:52)'>05-03</th><th title='iter_a1a2a3_v3b_20260503-191101 (2026-05-03T19:11:03)'>05-03</th><th class='col-lat' title='iter_a1a2a3_v3c_20260503-192015 (2026-05-03T19:20:16)'>05-03</th></tr></thead><tbody><tr><td class='ht'>arguments</td><td class='hi'>arguments_001_ai_coups_distinct</td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='final_run: 0.743'>0.74</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='full_arguments: 0.743'>0.74</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#f9eba7' title='iter_a1a2a3_20260503-172329: 0.662'>0.66</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#bce4c1' title='iter_a1a2a3_v3_20260503-184750: 0.900 ★ personal best'>0.90★</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3b_20260503-191101: 0.735'>0.73</td><td class='hc hlat' style='background:#dcefb4' title='iter_a1a2a3_v3c_20260503-192015: 0.768'>0.77</td></tr><tr><td class='ht'>arguments</td><td class='hi'>arguments_002_lock_in_mechanisms</td><td class='hm'></td><td class='hc' style='background:#f4ca7f' title='final_run: 0.525'>0.52</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#f4ca7f' title='full_arguments: 0.525'>0.52</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#f4ca7f' title='iter_a1a2a3_20260503-172329: 0.557'>0.56</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3_20260503-184750: 0.746 ★ personal best'>0.75★</td><td class='hc' style='background:#f4ca7f' title='iter_a1a2a3_v3b_20260503-191101: 0.570'>0.57</td><td class='hc hlat' style='background:#f4ca7f' title='iter_a1a2a3_v3c_20260503-192015: 0.483'>0.48</td></tr><tr><td class='ht'>arguments</td><td class='hi'>arguments_003_software_ie_acceleration</td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='final_run: 0.732'>0.73</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='full_arguments: 0.732'>0.73</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#f9eba7' title='iter_a1a2a3_20260503-172329: 0.678'>0.68</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#bce4c1' title='iter_a1a2a3_v3_20260503-184750: 0.827 ★ personal best'>0.83★</td><td class='hc' style='background:#f9eba7' title='iter_a1a2a3_v3b_20260503-191101: 0.694'>0.69</td><td class='hc hlat' style='background:#dcefb4' title='iter_a1a2a3_v3c_20260503-192015: 0.763'>0.76</td></tr><tr><td class='ht'>arguments</td><td class='hi'>arguments_004_country_outgrowth</td><td class='hm'></td><td class='hc' style='background:#f9eba7' title='final_run: 0.658'>0.66</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#f9eba7' title='full_arguments: 0.658'>0.66</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#f4ca7f' title='iter_a1a2a3_20260503-172329: 0.557'>0.56</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3_20260503-184750: 0.735 ★ personal best'>0.73★</td><td class='hc' style='background:#f9eba7' title='iter_a1a2a3_v3b_20260503-191101: 0.687'>0.69</td><td class='hc hlat' style='background:#f9eba7' title='iter_a1a2a3_v3c_20260503-192015: 0.654'>0.65</td></tr><tr><td class='ht'>claim_recall</td><td class='hi'>claim_recall_001</td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='final_run: 0.775'>0.77</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='full_claim_recall: 0.760'>0.76</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='extended_claim_recall: 0.775'>0.77</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_20260503-172329: 0.760'>0.76</td><td class='hc' style='background:#e89c87' title='iter_a1a2a3_v2_20260503-173202: 0.283'>0.28</td><td class='hc' style='background:#dcefb4' title='librarian_20260503-184644: 0.763'>0.76</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3_20260503-184750: 0.752'>0.75</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3b_20260503-191101: 0.794'>0.79</td><td class='hc hlat' style='background:#bce4c1' title='iter_a1a2a3_v3c_20260503-192015: 0.812 ★ personal best'>0.81★</td></tr><tr><td class='ht'>claim_recall</td><td class='hi'>claim_recall_002</td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='final_run: 0.775 ★ personal best'>0.77★</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='extended_claim_recall: 0.775 ★ personal best'>0.77★</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td></tr><tr><td class='ht'>claim_recall</td><td class='hi'>claim_recall_003</td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='final_run: 0.700 ★ personal best'>0.70★</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='extended_claim_recall: 0.700 ★ personal best'>0.70★</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td></tr><tr><td class='ht'>claim_recall</td><td class='hi'>claim_recall_004</td><td class='hm'></td><td class='hc' style='background:#e89c87' title='final_run: 0.300'>0.30</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#e89c87' title='full_claim_recall: 0.275'>0.28</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#e89c87' title='extended_claim_recall: 0.300'>0.30</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#e89c87' title='iter_a1a2a3_20260503-172329: 0.360'>0.36</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v2_20260503-173202: 0.715 ★ personal best'>0.71★</td><td class='hc' style='background:#dcefb4' title='librarian_20260503-184644: 0.715 ★ personal best'>0.71★</td><td class='hc' style='background:#e89c87' title='iter_a1a2a3_v3_20260503-184750: 0.325'>0.32</td><td class='hc' style='background:#e89c87' title='iter_a1a2a3_v3b_20260503-191101: 0.289'>0.29</td><td class='hc hlat' style='background:#e89c87' title='iter_a1a2a3_v3c_20260503-192015: 0.350'>0.35</td></tr><tr><td class='ht'>claim_recall</td><td class='hi'>claim_recall_005</td><td class='hm'></td><td class='hc' style='background:#e89c87' title='final_run: 0.200 ★ personal best'>0.20★</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#e89c87' title='extended_claim_recall: 0.200 ★ personal best'>0.20★</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td></tr><tr><td class='ht'>claim_recall</td><td class='hi'>claim_recall_006</td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='final_run: 0.700'>0.70</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='full_claim_recall: 0.700'>0.70</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='extended_claim_recall: 0.700'>0.70</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_20260503-172329: 0.730'>0.73</td><td class='hc' style='background:#bce4c1' title='iter_a1a2a3_v2_20260503-173202: 0.825'>0.82</td><td class='hc' style='background:#bce4c1' title='librarian_20260503-184644: 0.887 ★ personal best'>0.89★</td><td class='hc' style='background:#bce4c1' title='iter_a1a2a3_v3_20260503-184750: 0.850'>0.85</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3b_20260503-191101: 0.775'>0.77</td><td class='hc hlat' style='background:#bce4c1' title='iter_a1a2a3_v3c_20260503-192015: 0.850'>0.85</td></tr><tr><td class='ht'>claim_recall</td><td class='hi'>claim_recall_007</td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='final_run: 0.700'>0.70</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='full_claim_recall: 0.700'>0.70</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='extended_claim_recall: 0.700'>0.70</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_20260503-172329: 0.730 ★ personal best'>0.73★</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v2_20260503-173202: 0.715'>0.71</td><td class='hc' style='background:#dcefb4' title='librarian_20260503-184644: 0.715'>0.71</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3_20260503-184750: 0.715'>0.71</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3b_20260503-191101: 0.715'>0.71</td><td class='hc hlat' style='background:#dcefb4' title='iter_a1a2a3_v3c_20260503-192015: 0.715'>0.71</td></tr><tr><td class='ht'>claim_recall</td><td class='hi'>claim_recall_008</td><td class='hm'></td><td class='hc' style='background:#e89c87' title='final_run: 0.200'>0.20</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#e89c87' title='full_claim_recall: 0.200'>0.20</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#e89c87' title='extended_claim_recall: 0.200'>0.20</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_20260503-172329: 0.730'>0.73</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v2_20260503-173202: 0.715'>0.71</td><td class='hc' style='background:#dcefb4' title='librarian_20260503-184644: 0.715'>0.71</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3_20260503-184750: 0.715'>0.71</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3b_20260503-191101: 0.790 ★ personal best'>0.79★</td><td class='hc hlat' style='background:#dcefb4' title='iter_a1a2a3_v3c_20260503-192015: 0.715'>0.71</td></tr><tr><td class='ht'>definitions</td><td class='hi'>definitions_001_viatopia</td><td class='hc' style='background:#f9eba7' title='smoke_test: 0.633'>0.63</td><td class='hc' style='background:#f9eba7' title='final_run: 0.689'>0.69</td><td class='hc' style='background:#f9eba7' title='full_definitions: 0.689'>0.69</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='auto_def_20260503-135832: 0.750'>0.75</td><td class='hc' style='background:#f9eba7' title='iter_a1a2a3_20260503-172329: 0.690'>0.69</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#bce4c1' title='iter_a1a2a3_v3_20260503-184750: 0.850 ★ personal best'>0.85★</td><td class='hc' style='background:#bce4c1' title='iter_a1a2a3_v3b_20260503-191101: 0.830'>0.83</td><td class='hc hlat' style='background:#bce4c1' title='iter_a1a2a3_v3c_20260503-192015: 0.826'>0.83</td></tr><tr><td class='ht'>definitions</td><td class='hi'>definitions_002_asara</td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='final_run: 0.714'>0.71</td><td class='hc' style='background:#dcefb4' title='full_definitions: 0.714'>0.71</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#f9eba7' title='iter_a1a2a3_20260503-172329: 0.640'>0.64</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3_20260503-184750: 0.775'>0.78</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3b_20260503-191101: 0.794'>0.79</td><td class='hc hlat' style='background:#dcefb4' title='iter_a1a2a3_v3c_20260503-192015: 0.797 ★ personal best'>0.80★</td></tr><tr><td class='ht'>definitions</td><td class='hi'>definitions_003_ai_character</td><td class='hm'></td><td class='hc' style='background:#f9eba7' title='final_run: 0.689'>0.69</td><td class='hc' style='background:#f9eba7' title='full_definitions: 0.689'>0.69</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_20260503-172329: 0.700'>0.70</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#bce4c1' title='iter_a1a2a3_v3_20260503-184750: 0.833 ★ personal best'>0.83★</td><td class='hc' style='background:#bce4c1' title='iter_a1a2a3_v3b_20260503-191101: 0.819'>0.82</td><td class='hc hlat' style='background:#bce4c1' title='iter_a1a2a3_v3c_20260503-192015: 0.807'>0.81</td></tr><tr><td class='ht'>definitions</td><td class='hi'>definitions_004_three_ie_types</td><td class='hm'></td><td class='hc' style='background:#f9eba7' title='final_run: 0.600'>0.60</td><td class='hc' style='background:#f9eba7' title='full_definitions: 0.600'>0.60</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#f9eba7' title='iter_a1a2a3_20260503-172329: 0.676'>0.68</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3_20260503-184750: 0.765'>0.77</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3b_20260503-191101: 0.755'>0.76</td><td class='hc hlat' style='background:#dcefb4' title='iter_a1a2a3_v3c_20260503-192015: 0.769 ★ personal best'>0.77★</td></tr><tr><td class='ht'>definitions</td><td class='hi'>definitions_005_lock_in_mechanisms</td><td class='hm'></td><td class='hc' style='background:#e89c87' title='final_run: 0.329'>0.33</td><td class='hc' style='background:#e89c87' title='full_definitions: 0.329'>0.33</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#e89c87' title='iter_a1a2a3_20260503-172329: 0.407'>0.41</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#bce4c1' title='iter_a1a2a3_v3_20260503-184750: 0.813 ★ personal best'>0.81★</td><td class='hc' style='background:#f4ca7f' title='iter_a1a2a3_v3b_20260503-191101: 0.516'>0.52</td><td class='hc hlat' style='background:#f4ca7f' title='iter_a1a2a3_v3c_20260503-192015: 0.470'>0.47</td></tr><tr><td class='ht'>definitions</td><td class='hi'>definitions_006_ai_enabled_coup</td><td class='hm'></td><td class='hc' style='background:#f9eba7' title='final_run: 0.689'>0.69</td><td class='hc' style='background:#f9eba7' title='full_definitions: 0.689'>0.69</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#f9eba7' title='iter_a1a2a3_20260503-172329: 0.695'>0.69</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3_20260503-184750: 0.756'>0.76</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3b_20260503-191101: 0.783 ★ personal best'>0.78★</td><td class='hc hlat' style='background:#dcefb4' title='iter_a1a2a3_v3c_20260503-192015: 0.717'>0.72</td></tr><tr><td class='ht'>synthesis</td><td class='hi'>synthesis_001_ie_timeline_compression</td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='final_run: 0.740'>0.74</td><td class='hm'></td><td class='hc' style='background:#f9eba7' title='smoke_synthesis: 0.610'>0.61</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='full_synthesis: 0.740'>0.74</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#f9eba7' title='iter_a1a2a3_20260503-172329: 0.671'>0.67</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3_20260503-184750: 0.784 ★ personal best'>0.78★</td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3b_20260503-191101: 0.745'>0.74</td><td class='hc hlat' style='background:#dcefb4' title='iter_a1a2a3_v3c_20260503-192015: 0.775'>0.78</td></tr><tr><td class='ht'>synthesis</td><td class='hi'>synthesis_002_lock_in_window</td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='final_run: 0.725'>0.73</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='full_synthesis: 0.725'>0.73</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_20260503-172329: 0.712'>0.71</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_v3_20260503-184750: 0.745'>0.74</td><td class='hc' style='background:#f9eba7' title='iter_a1a2a3_v3b_20260503-191101: 0.688'>0.69</td><td class='hc hlat' style='background:#dcefb4' title='iter_a1a2a3_v3c_20260503-192015: 0.794 ★ personal best'>0.79★</td></tr><tr><td class='ht'>synthesis</td><td class='hi'>synthesis_003_coups_outgrowth</td><td class='hm'></td><td class='hc' style='background:#bce4c1' title='final_run: 0.800'>0.80</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#bce4c1' title='full_synthesis: 0.800'>0.80</td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#dcefb4' title='iter_a1a2a3_20260503-172329: 0.730'>0.73</td><td class='hm'></td><td class='hm'></td><td class='hc' style='background:#bce4c1' title='iter_a1a2a3_v3_20260503-184750: 0.855'>0.86</td><td class='hc' style='background:#bce4c1' title='iter_a1a2a3_v3b_20260503-191101: 0.844'>0.84</td><td class='hc hlat' style='background:#bce4c1' title='iter_a1a2a3_v3c_20260503-192015: 0.857 ★ personal best'>0.86★</td></tr></tbody></table></div>
+  </div>
+</details>
+
+<!-- Run history -->
+<details class="section">
+  <summary>
+    <span class="section-toggle">▶</span>
+    <span class="section-title">Run history</span>
+    <span class="section-hint">most recent 17 of 17 runs, latest highlighted</span>
+  </summary>
+  <div class="section-body no-pad">
+    <table>
+    <thead><tr>
+      <th>Timestamp</th><th>Run name</th><th class="num">v</th>
+      <th class='num' title='definitions'>definitions</th><th class='num' title='claim_recall'>claim_recall</th><th class='num' title='arguments'>arguments</th><th class='num' title='synthesis'>synthesis</th>
+      <th class="num" title="n-weighted composite across all tracks in this run">Overall</th>
+      <th class="num" title="Number of items scored">n</th>
+    </tr></thead>
+    <tbody><tr class='row-lat'><td class='ts'>2026-05-03T19:20:16</td><td class='rn'>iter_a1a2a3_v3c_20260503-192015</td><td class='num muted'>0.3.0</td><td class='num' style='background:#dcefb4'>0.731</td><td class='num' style='background:#f9eba7'>0.688</td><td class='num' style='background:#f9eba7'>0.667</td><td class='num' style='background:#bce4c1'>0.809</td><td class='num sc' style='background:#dcefb4'><strong>0.718</strong></td><td class='num muted'>18</td></tr><tr><td class='ts'>2026-05-03T19:11:03</td><td class='rn'>iter_a1a2a3_v3b_20260503-191101</td><td class='num muted'>0.3.0</td><td class='num' style='background:#dcefb4'>0.750</td><td class='num' style='background:#f9eba7'>0.673</td><td class='num' style='background:#f9eba7'>0.671</td><td class='num' style='background:#dcefb4'>0.759</td><td class='num sc' style='background:#dcefb4'><strong>0.712</strong></td><td class='num muted'>18</td></tr><tr><td class='ts'>2026-05-03T18:47:52</td><td class='rn'>iter_a1a2a3_v3_20260503-184750</td><td class='num muted'>0.3.0</td><td class='num' style='background:#dcefb4'>0.799</td><td class='num' style='background:#f9eba7'>0.671</td><td class='num' style='background:#bce4c1'>0.802</td><td class='num' style='background:#dcefb4'>0.795</td><td class='num sc' style='background:#dcefb4'><strong>0.763</strong></td><td class='num muted'>18</td></tr><tr><td class='ts'>2026-05-03T18:46:45</td><td class='rn'>librarian_20260503-184644</td><td class='num muted'>0.3.0</td><td class='num muted'>—</td><td class='num' style='background:#dcefb4'>0.759</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num sc' style='background:#dcefb4'><strong>0.759</strong></td><td class='num muted'>5</td></tr><tr><td class='ts'>2026-05-03T17:32:03</td><td class='rn'>iter_a1a2a3_v2_20260503-173202</td><td class='num muted'>0.3.0</td><td class='num' style='background:#e89c87'>nan</td><td class='num' style='background:#f9eba7'>0.651</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num sc' style='background:#f9eba7'><strong>0.651</strong></td><td class='num muted'>5</td></tr><tr><td class='ts'>2026-05-03T17:23:31</td><td class='rn'>iter_a1a2a3_20260503-172329</td><td class='num muted'>0.3.0</td><td class='num' style='background:#f9eba7'>0.635</td><td class='num' style='background:#f9eba7'>0.662</td><td class='num' style='background:#f9eba7'>0.613</td><td class='num' style='background:#dcefb4'>0.704</td><td class='num sc' style='background:#f9eba7'><strong>0.649</strong></td><td class='num muted'>18</td></tr><tr><td class='ts'>2026-05-03T13:58:33</td><td class='rn'>auto_def_20260503-135832</td><td class='num muted'>0.2.0</td><td class='num' style='background:#dcefb4'>0.750</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num sc' style='background:#dcefb4'><strong>0.750</strong></td><td class='num muted'>1</td></tr><tr><td class='ts'>2026-05-03T13:56:29</td><td class='rn'>auto_smoke_20260503-135628</td><td class='num muted'>0.2.0</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num sc' style='background:#bce4c1'><strong>1.000</strong></td><td class='num muted'>1</td></tr><tr><td class='ts'>2026-05-03T13:21:13</td><td class='rn'>stress_climate</td><td class='num muted'>0.2.0</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num sc' style='background:#bce4c1'><strong>1.000</strong></td><td class='num muted'>1</td></tr><tr><td class='ts'>2026-05-03T13:13:52</td><td class='rn'>extended_claim_recall</td><td class='num muted'>0.2.0</td><td class='num muted'>—</td><td class='num' style='background:#f4ca7f'>0.544</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num sc' style='background:#f4ca7f'><strong>0.544</strong></td><td class='num muted'>8</td></tr><tr><td class='ts'>2026-05-03T13:07:00</td><td class='rn'>full_synthesis</td><td class='num muted'>0.2.0</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num' style='background:#dcefb4'>0.755</td><td class='num sc' style='background:#dcefb4'><strong>0.755</strong></td><td class='num muted'>3</td></tr><tr><td class='ts'>2026-05-03T13:02:24</td><td class='rn'>full_arguments</td><td class='num muted'>0.2.0</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num' style='background:#f9eba7'>0.664</td><td class='num muted'>—</td><td class='num sc' style='background:#f9eba7'><strong>0.664</strong></td><td class='num muted'>4</td></tr><tr><td class='ts'>2026-05-03T13:01:09</td><td class='rn'>full_claim_recall</td><td class='num muted'>0.2.0</td><td class='num muted'>—</td><td class='num' style='background:#f4ca7f'>0.527</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num sc' style='background:#f4ca7f'><strong>0.527</strong></td><td class='num muted'>5</td></tr><tr><td class='ts'>2026-05-03T12:56:31</td><td class='rn'>smoke_synthesis</td><td class='num muted'>0.2.0</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num' style='background:#f9eba7'>0.610</td><td class='num sc' style='background:#f9eba7'><strong>0.610</strong></td><td class='num muted'>1</td></tr><tr><td class='ts'>2026-05-03T12:53:19</td><td class='rn'>full_definitions</td><td class='num muted'>0.2.0</td><td class='num' style='background:#f9eba7'>0.618</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num sc' style='background:#f9eba7'><strong>0.618</strong></td><td class='num muted'>6</td></tr><tr><td class='ts'>2026-05-03T12:53:19</td><td class='rn'>final_run</td><td class='num muted'>0.2.0</td><td class='num' style='background:#f9eba7'>0.618</td><td class='num' style='background:#f4ca7f'>0.544</td><td class='num' style='background:#f9eba7'>0.664</td><td class='num' style='background:#dcefb4'>0.755</td><td class='num sc' style='background:#f9eba7'><strong>0.655</strong></td><td class='num muted'>29</td></tr><tr><td class='ts'>2026-05-03T12:49:45</td><td class='rn'>smoke_test</td><td class='num muted'>0.2.0</td><td class='num' style='background:#f9eba7'>0.633</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num muted'>—</td><td class='num sc' style='background:#f9eba7'><strong>0.633</strong></td><td class='num muted'>1</td></tr></tbody>
+    </table>
+  </div>
+</details>
+
+</body></html>

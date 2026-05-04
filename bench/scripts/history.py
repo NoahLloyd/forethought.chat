@@ -26,6 +26,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
 import sys
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -425,192 +426,745 @@ def _score_color(v: float) -> str:
     return "#e89c87"
 
 
+_TRACK_DESCRIPTIONS = {
+    "definitions": (
+        "Tests exact recall of domain-specific terms defined in the corpus. "
+        "The agent must define the term accurately and cite the right source passage. "
+        "Composite = 0.6 verbal_match + 0.2 citation_faithfulness + 0.2 answer_support."
+    ),
+    "claim_recall": (
+        "Tests precise recall of specific factual claims — numeric values or categorical facts — "
+        "from corpus sources, including preserving hedging language like 'roughly' or 'approximately'. "
+        "Composite = 0.5 correctness + 0.2 hedge_preservation + 0.15 citation_faithfulness + 0.15 answer_support."
+    ),
+    "arguments": (
+        "Tests reconstruction of structured arguments from corpus texts: the agent must identify "
+        "all required logical elements of an argument and cite the source. "
+        "Composite = 0.6 elements_rubric + 0.2 citation_faithfulness + 0.2 answer_support."
+    ),
+    "synthesis": (
+        "Tests synthesis across multiple sources: the agent must draw on several corpus documents, "
+        "recall all expected citations, integrate them coherently, and cover required elements. "
+        "Composite = 0.25 citation_recall + 0.25 elements_rubric + 0.20 integration + "
+        "0.15 citation_faithfulness + 0.15 answer_support."
+    ),
+    "open_research": (
+        "Open-domain macrostrategy research (parked — harness not yet built). "
+        "Composite = 0.7 four-axis rubric + 0.3 citation_faithfulness."
+    ),
+}
+
+_METRIC_TIPS = {
+    "n": "Number of items scored in this run.",
+    "Latest": "Composite score from the most recent run (n-weighted mean across items in this track).",
+    "Previous": "Composite score from the run immediately before the latest.",
+    "Delta": (
+        "Change from the previous run. Green ↑ = improved by >0.005, "
+        "red ↓ = regressed by >0.005, grey → = effectively flat."
+    ),
+    "Best ever": "Highest composite this track has ever achieved across all runs on record.",
+    "Valid cite%": (
+        "Citation faithfulness: fraction of citations where the cited passage was (a) found in "
+        "the corpus and (b) actually supported the claim it was attached to. "
+        "Low means the agent is hallucinating sources or misattributing quotes."
+    ),
+    "Ans sup": (
+        "Answer support: mean score (0–1) measuring how well the answer's claims are "
+        "backed by the cited evidence. Low means the agent is asserting things not "
+        "covered by the sources it cites."
+    ),
+}
+
+
 def cmd_dashboard(runs: list[RunSummary], out_path: str) -> None:
-    """Single-page HTML: KPIs, composite-over-time SVG, per-item heatmap."""
+    """Single-page HTML dashboard: improvement banner, KPIs, chart, track table, heatmap."""
+    import datetime as _dt
+
     if not runs:
         print("no runs to render", file=sys.stderr)
         return
 
     latest = runs[-1]
+    prev = runs[-2] if len(runs) >= 2 else None
     versions = sorted({r.benchmark_version for r in runs})
 
-    # SVG line chart sized for embedding.
-    w, h = 720, 260
-    pad_l, pad_r, pad_t, pad_b = 40, 20, 20, 30
-    plot_w = w - pad_l - pad_r
-    plot_h = h - pad_t - pad_b
-    n = max(1, len(runs) - 1)
-
-    def x(i: int) -> float:
-        return pad_l + (i / n) * plot_w if len(runs) > 1 else pad_l + plot_w / 2
-
-    def y(v: float) -> float:
-        return pad_t + plot_h - max(0.0, min(1.0, v)) * plot_h
-
-    svg_parts: list[str] = [
-        f'<svg xmlns="http://www.w3.org/2000/svg" width="{w}" height="{h}" '
-        f'viewBox="0 0 {w} {h}" font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="11">',
-        '<style>.gridline{stroke:#e6e0d4;stroke-dasharray:3 3} '
-        '.axis{stroke:#999;stroke-width:1} '
-        '.label{fill:#6b6358}</style>',
+    # ── Active tracks (skip retired boundary/gate) ───────────────────────────
+    active_tracks = [
+        t for t in TRACK_ORDER
+        if any(t in r.tracks for r in runs) and t not in {"boundary", "gate"}
     ]
-    # gridlines at 0.25, 0.50, 0.75, 1.0
-    for v in (0.25, 0.50, 0.75, 1.00):
-        yy = y(v)
-        svg_parts.append(f'<line class="gridline" x1="{pad_l}" y1="{yy}" x2="{w-pad_r}" y2="{yy}"/>')
-        svg_parts.append(f'<text class="label" x="6" y="{yy+3}">{v:.2f}</text>')
-    # axes
-    svg_parts.append(f'<line class="axis" x1="{pad_l}" y1="{pad_t}" x2="{pad_l}" y2="{h-pad_b}"/>')
-    svg_parts.append(f'<line class="axis" x1="{pad_l}" y1="{h-pad_b}" x2="{w-pad_r}" y2="{h-pad_b}"/>')
 
-    # version-change vertical markers
-    last_v: str | None = None
+    # ── Per-track statistics ─────────────────────────────────────────────────
+    track_data: dict[str, dict] = {}
+    for t in active_tracks:
+        all_scores = [
+            r.tracks[t].composite_mean for r in runs
+            if t in r.tracks and r.tracks[t].composite_mean == r.tracks[t].composite_mean
+        ]
+        if not all_scores:
+            continue
+        l_score = latest.tracks[t].composite_mean if t in latest.tracks else None
+        p_score = prev.tracks[t].composite_mean if prev and t in prev.tracks else None
+        b_score = max(all_scores)
+        delta = (l_score - p_score) if (l_score is not None and p_score is not None) else None
+        track_data[t] = {
+            "latest": l_score, "prev": p_score, "best": b_score, "delta": delta,
+            "is_best": l_score is not None and abs(l_score - b_score) < 1e-9,
+            "n": latest.tracks[t].n if t in latest.tracks else 0,
+            "valid_rate": latest.tracks[t].valid_rate if t in latest.tracks else None,
+            "ans_sup_mean": latest.tracks[t].ans_sup_mean if t in latest.tracks else None,
+        }
+
+    # ── Per-item matrix (active tracks only) ─────────────────────────────────
+    active_track_set = set(active_tracks)
+    matrix: dict[tuple[str, str], dict[str, float]] = {}
+    for r in runs:
+        for t, ts in r.tracks.items():
+            if t not in active_track_set:
+                continue
+            for iid, v in ts.items:
+                matrix.setdefault((t, iid), {})[r.name] = v
+    item_best: dict[tuple[str, str], float] = {
+        k: max(vs.values()) for k, vs in matrix.items()
+    }
+
+    # ── Overall statistics ────────────────────────────────────────────────────
+    overall_latest = latest.overall_composite
+    overall_prev = prev.overall_composite if prev else None
+    overall_best = max(
+        r.overall_composite for r in runs
+        if r.overall_composite == r.overall_composite
+    )
+    overall_delta = (overall_latest - overall_prev) if overall_prev is not None else None
+
+    # ── Improvement banner ────────────────────────────────────────────────────
+    if overall_delta is not None:
+        if overall_delta > 0.001:
+            banner_cls, banner_icon = "improve", "↑"
+        elif overall_delta < -0.001:
+            banner_cls, banner_icon = "regress", "↓"
+        else:
+            banner_cls, banner_icon = "flat", "→"
+        track_deltas = []
+        for t, td in track_data.items():
+            if td["delta"] is not None and abs(td["delta"]) >= 0.005:
+                arrow = "↑" if td["delta"] > 0 else "↓"
+                track_deltas.append(f"{t} {td['delta']:+.3f}{arrow}")
+        detail_span = (
+            f"<span class='banner-detail'>({' · '.join(track_deltas)})</span>"
+            if track_deltas else ""
+        )
+        banner_html = (
+            f"<div class='banner banner-{banner_cls}'>"
+            f"<span class='banner-icon'>{banner_icon}</span>"
+            f"<span class='banner-msg'>Overall {overall_delta:+.3f} vs previous run</span>"
+            f"{detail_span}</div>"
+        )
+    else:
+        banner_html = ""
+
+    # ── SVG chart ─────────────────────────────────────────────────────────────
+    cw, ch = 880, 310
+    pl, pr, pt, pb = 50, 24, 28, 54
+    pw, ph = cw - pl - pr, ch - pt - pb
+    n_pts = max(1, len(runs) - 1)
+
+    def cx(i: int) -> float:
+        return pl + (i / n_pts) * pw if len(runs) > 1 else pl + pw / 2
+
+    def cy(v: float) -> float:
+        return pt + ph - max(0.0, min(1.0, v)) * ph
+
+    svg: list[str] = [
+        f'<svg xmlns="http://www.w3.org/2000/svg" width="{cw}" height="{ch}" '
+        f'viewBox="0 0 {cw} {ch}" '
+        f'font-family="-apple-system,Helvetica,Arial,sans-serif" font-size="11">',
+        '<defs><style>'
+        '.gl{stroke:#e6e0d4;stroke-dasharray:3 3}'
+        '.ax{stroke:#c0b8ae}'
+        '.lbl{fill:#8a7f76}'
+        '</style></defs>',
+    ]
+    for gv in (0.25, 0.50, 0.75, 1.00):
+        gy = cy(gv)
+        svg.append(f'<line class="gl" x1="{pl}" y1="{gy:.1f}" x2="{cw-pr}" y2="{gy:.1f}"/>')
+        svg.append(f'<text class="lbl" x="{pl-6:.1f}" y="{gy+4:.1f}" text-anchor="end">{gv:.2f}</text>')
+    svg.append(f'<line class="ax" x1="{pl}" y1="{pt}" x2="{pl}" y2="{ch-pb}"/>')
+    svg.append(f'<line class="ax" x1="{pl}" y1="{ch-pb:.1f}" x2="{cw-pr}" y2="{ch-pb:.1f}"/>')
+
+    # X-axis tick labels (abbreviated, rotated)
+    step = max(1, len(runs) // 14)
     for i, r in enumerate(runs):
-        if last_v is not None and r.benchmark_version != last_v:
-            xx = x(i)
-            svg_parts.append(
-                f'<line x1="{xx}" y1="{pad_t}" x2="{xx}" y2="{h-pad_b}" '
-                f'stroke="#888" stroke-width="1" stroke-dasharray="4 3"/>'
+        if i % step == 0 or i == len(runs) - 1:
+            xx = cx(i)
+            lbl = r.timestamp[5:10] if len(r.timestamp) >= 10 else r.name[-8:]
+            svg.append(
+                f'<text class="lbl" x="{xx:.1f}" y="{ch-pb+13:.1f}" text-anchor="end" '
+                f'transform="rotate(-40,{xx:.1f},{ch-pb+13:.1f})">{lbl}</text>'
             )
-            svg_parts.append(
-                f'<text class="label" x="{xx+3}" y="{pad_t+10}" fill="#888">v{r.benchmark_version}</text>'
-            )
-        last_v = r.benchmark_version
 
-    # one polyline per track
-    tracks_present = sorted({t for r in runs for t in r.tracks})
-    for t in tracks_present:
-        if t in {"boundary", "gate"}:
-            continue  # de-emphasise removed track in v0.3.0
-        pts: list[tuple[float, float]] = []
+    # Benchmark version change markers
+    last_bv: str | None = None
+    for i, r in enumerate(runs):
+        if last_bv is not None and r.benchmark_version != last_bv:
+            xx = cx(i)
+            svg.append(
+                f'<line x1="{xx:.1f}" y1="{pt}" x2="{xx:.1f}" y2="{ch-pb}" '
+                f'stroke="#b0a898" stroke-width="1" stroke-dasharray="4 3"/>'
+            )
+            svg.append(
+                f'<text class="lbl" x="{xx+3:.1f}" y="{pt+9}" fill="#b0a898">v{r.benchmark_version}</text>'
+            )
+        last_bv = r.benchmark_version
+
+    # Per-track polylines + dots with native tooltips
+    for t in active_tracks:
+        pts_data: list[tuple[float, float, float, str]] = []
         for i, r in enumerate(runs):
             ts = r.tracks.get(t)
             if ts is None or ts.n == 0 or ts.composite_mean != ts.composite_mean:
                 continue
-            pts.append((x(i), y(ts.composite_mean)))
-        if not pts:
+            pts_data.append((cx(i), cy(ts.composite_mean), ts.composite_mean, r.name))
+        if not pts_data:
             continue
-        color = _TRACK_COLORS.get(t, "#444")
-        polyline = " ".join(f"{xx:.1f},{yy:.1f}" for xx, yy in pts)
-        svg_parts.append(
-            f'<polyline points="{polyline}" stroke="{color}" stroke-width="2" fill="none"/>'
+        color = _TRACK_COLORS.get(t, "#666")
+        poly = " ".join(f"{xx:.1f},{yy:.1f}" for xx, yy, _, _ in pts_data)
+        svg.append(
+            f'<polyline points="{poly}" stroke="{color}" stroke-width="2.5" fill="none" '
+            f'stroke-linejoin="round" stroke-linecap="round" opacity="0.9"/>'
         )
-        for xx, yy in pts:
-            svg_parts.append(
-                f'<circle cx="{xx:.1f}" cy="{yy:.1f}" r="3" fill="{color}"/>'
+        for xx, yy, sc, rname in pts_data:
+            is_lat = rname == latest.name
+            r_size = "5.5" if is_lat else "3.5"
+            stroke_extra = ' stroke="white" stroke-width="1.5"' if is_lat else ""
+            svg.append(
+                f'<circle cx="{xx:.1f}" cy="{yy:.1f}" r="{r_size}" fill="{color}"{stroke_extra}>'
+                f'<title>{t}: {sc:.3f}\n{rname}</title></circle>'
             )
-    # legend
-    legend_x = pad_l + 8
-    legend_y = pad_t + 6
-    for t in tracks_present:
-        if t in {"boundary", "gate"}:
-            continue
-        color = _TRACK_COLORS.get(t, "#444")
-        svg_parts.append(
-            f'<rect x="{legend_x}" y="{legend_y-8}" width="10" height="3" fill="{color}"/>'
-            f'<text x="{legend_x+14}" y="{legend_y-3}" fill="{color}">{t}</text>'
-        )
-        legend_y += 14
-    svg_parts.append('</svg>')
-    chart_svg = "".join(svg_parts)
 
-    # Per-item heatmap
-    by_track: dict[str, list[tuple[str, dict[str, float]]]] = defaultdict(list)
-    for r in runs:
-        for t, ts in r.tracks.items():
-            for iid, v in ts.items:
-                # Append (item_id, {run: score})
-                pass
-    # collect cleanly
-    matrix: dict[tuple[str, str], dict[str, float]] = {}
-    for r in runs:
-        for t, ts in r.tracks.items():
-            for iid, v in ts.items:
-                matrix.setdefault((t, iid), {})[r.name] = v
-    heat_rows: list[str] = []
-    heat_rows.append("<table class='heatmap'><thead><tr><th>Track</th><th>Item</th>")
-    for r in runs:
-        heat_rows.append(
-            f"<th class='vert' title='{r.name} v{r.benchmark_version}'>"
-            f"{r.timestamp[5:10]} <span class='vmeta'>v{r.benchmark_version}</span></th>"
+    # Legend (top-right)
+    leg_x, leg_y = cw - pr - 6, pt + 10
+    for t in reversed(active_tracks):
+        color = _TRACK_COLORS.get(t, "#666")
+        svg.append(
+            f'<rect x="{leg_x-64}" y="{leg_y-7}" width="12" height="3" fill="{color}"/>'
+            f'<text x="{leg_x-48}" y="{leg_y-1}" fill="{color}" font-size="11">{t}</text>'
         )
-    heat_rows.append("</tr></thead><tbody>")
-    for (t, iid) in sorted(matrix):
-        heat_rows.append(f"<tr><td class='track'>{t}</td><td class='itemid'>{iid}</td>")
+        leg_y += 15
+    svg.append("</svg>")
+    chart_svg = "".join(svg)
+
+    # ── Track table ───────────────────────────────────────────────────────────
+    def _delta_td(delta: float | None, is_best: bool) -> str:
+        best = "<span class='best-badge'>★ new best</span>" if is_best else ""
+        if delta is None:
+            return f"<td class='num'>—</td><td>{best}</td>"
+        if delta > 0.005:
+            cls, arrow = "delta-up", "↑"
+        elif delta < -0.005:
+            cls, arrow = "delta-dn", "↓"
+        else:
+            cls, arrow = "delta-fl", "→"
+        return f"<td class='num {cls}'>{delta:+.3f}&thinsp;{arrow}</td><td>{best}</td>"
+
+    track_rows: list[str] = []
+    for t in active_tracks:
+        td = track_data.get(t)
+        if td is None:
+            continue
+        l, p, b = td["latest"], td["prev"], td["best"]
+        l_cell = (
+            f"<td class='num sc' style='background:{_score_color(l)}'>{l:.3f}</td>"
+            if l is not None else "<td class='num'>—</td>"
+        )
+        p_cell = f"<td class='num muted'>{p:.3f}</td>" if p is not None else "<td class='num muted'>—</td>"
+        b_cell = f"<td class='num muted'>{b:.3f}</td>"
+        vr = f"{td['valid_rate']*100:.1f}%" if td["valid_rate"] is not None else "—"
+        ans = f"{td['ans_sup_mean']:.3f}" if td["ans_sup_mean"] is not None else "—"
+        desc = _TRACK_DESCRIPTIONS.get(t, "")
+        track_rows.append(
+            f"<tr>"
+            f"<td class='tn'><span class='tip' data-tip='{desc}'>{t}</span></td>"
+            f"<td class='num muted'>{td['n']}</td>"
+            f"{l_cell}{p_cell}{_delta_td(td['delta'], td['is_best'])}"
+            f"{b_cell}<td class='num muted'>{vr}</td><td class='num muted'>{ans}</td></tr>"
+        )
+
+    # ── Per-item heatmap ──────────────────────────────────────────────────────
+    heat: list[str] = [
+        "<table class='heatmap'><thead><tr>",
+        "<th>Track</th><th>Item</th>",
+    ]
+    for r in runs:
+        short = r.timestamp[5:10] if len(r.timestamp) >= 10 else r.name[-6:]
+        cls = " class='col-lat'" if r.name == latest.name else ""
+        heat.append(f"<th{cls} title='{r.name} ({r.timestamp[:19]})'>{short}</th>")
+    heat.append("</tr></thead><tbody>")
+    for (t, iid) in sorted(matrix.keys()):
+        heat.append(f"<tr><td class='ht'>{t}</td><td class='hi'>{iid}</td>")
         for r in runs:
             v = matrix[(t, iid)].get(r.name)
             if v is None:
-                heat_rows.append("<td class='nocell'></td>")
+                heat.append("<td class='hm'></td>")
             else:
-                heat_rows.append(
-                    f"<td class='cell' style='background:{_score_color(v)}'>{v:.2f}</td>"
+                is_pb = abs(v - item_best[(t, iid)]) < 1e-9
+                tip = f" title='{r.name}: {v:.3f}" + (" ★ personal best" if is_pb else "") + "'"
+                pb_star = "★" if is_pb else ""
+                lat_cls = " hlat" if r.name == latest.name else ""
+                heat.append(
+                    f"<td class='hc{lat_cls}' style='background:{_score_color(v)}'{tip}>"
+                    f"{v:.2f}{pb_star}</td>"
                 )
-        heat_rows.append("</tr>")
-    heat_rows.append("</tbody></table>")
-    heatmap_html = "".join(heat_rows)
+        heat.append("</tr>")
+    heat.append("</tbody></table>")
+    heatmap_html = "".join(heat)
 
-    # Per-track latest table
-    track_rows: list[str] = []
-    for t in TRACK_ORDER:
-        ts = latest.tracks.get(t)
-        if ts is None:
-            continue
-        track_rows.append(
-            f"<tr><td>{t}</td><td class='num'>{ts.n}</td>"
-            f"<td class='num' style='background:{_score_color(ts.composite_mean)}'>{ts.composite_mean:.3f}</td>"
-            f"<td class='num'>{_fmt_pct(ts.valid_rate, none='-')}</td>"
-            f"<td class='num'>{ts.ans_sup_mean:.3f}</td></tr>" if ts.ans_sup_mean is not None
-            else f"<tr><td>{t}</td><td class='num'>{ts.n}</td>"
-            f"<td class='num' style='background:{_score_color(ts.composite_mean)}'>{ts.composite_mean:.3f}</td>"
-            f"<td class='num'>{_fmt_pct(ts.valid_rate, none='-')}</td>"
-            f"<td class='num'>-</td></tr>"
+    # ── Run history table (most recent first, cap 25) ─────────────────────────
+    hist_rows: list[str] = []
+    track_th = "".join(f"<th class='num' title='{_METRIC_TIPS.get(t, t)}'>{t}</th>" for t in active_tracks)
+    for r in reversed(runs[-25:]):
+        row_cls = " class='row-lat'" if r.name == latest.name else ""
+        cells = []
+        for t in active_tracks:
+            ts = r.tracks.get(t)
+            if ts is None:
+                cells.append("<td class='num muted'>—</td>")
+            else:
+                cells.append(
+                    f"<td class='num' style='background:{_score_color(ts.composite_mean)}'>"
+                    f"{ts.composite_mean:.3f}</td>"
+                )
+        hist_rows.append(
+            f"<tr{row_cls}><td class='ts'>{r.timestamp[:19]}</td>"
+            f"<td class='rn'>{r.name}</td>"
+            f"<td class='num muted'>{r.benchmark_version}</td>"
+            + "".join(cells)
+            + f"<td class='num sc' style='background:{_score_color(r.overall_composite)}'>"
+              f"<strong>{r.overall_composite:.3f}</strong></td>"
+            + f"<td class='num muted'>{r.n_total}</td></tr>"
         )
 
+    # ── KPI delta colour ──────────────────────────────────────────────────────
+    if overall_delta is not None and overall_delta > 0.001:
+        delta_color = "#16a34a"
+    elif overall_delta is not None and overall_delta < -0.001:
+        delta_color = "#dc2626"
+    else:
+        delta_color = "inherit"
+
+    now_utc = _dt.datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC")
+    prev_short = (prev.name[:26] + "…") if prev and len(prev.name) > 26 else (prev.name if prev else "—")
+
+    # ── Score legend HTML ─────────────────────────────────────────────────────
+    score_legend = (
+        "<div class='score-legend'>"
+        "<span class='leg-label'>Score scale:</span>"
+        "<span class='leg' style='background:#bce4c1' title='Strong'>≥ 0.80</span>"
+        "<span class='leg' style='background:#dcefb4' title='Good'>0.70–0.79</span>"
+        "<span class='leg' style='background:#f9eba7' title='Middling'>0.60–0.69</span>"
+        "<span class='leg' style='background:#f4ca7f' title='Weak'>0.45–0.59</span>"
+        "<span class='leg' style='background:#e89c87' title='Poor'>&lt; 0.45</span>"
+        "</div>"
+    )
+
+    # ── Assemble page ─────────────────────────────────────────────────────────
     page = f"""<!doctype html>
-<html><head><meta charset='utf-8'><title>forethought-bench history</title>
+<html lang="en"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>forethought-bench dashboard</title>
 <style>
-:root {{ --bg:#fbfaf4; --ink:#2f2a26; --rule:#e6e0d4; }}
-body {{ background:var(--bg); color:var(--ink);
-    font:14px/1.55 -apple-system,BlinkMacSystemFont,Helvetica,Arial,sans-serif;
-    max-width:1200px; margin:24px auto; padding:0 20px; }}
-h1 {{ font-size:24px; margin:0 0 6px; }}
-h2 {{ font-size:18px; margin:24px 0 6px; border-bottom:1px solid var(--rule); padding-bottom:4px; }}
-.kpi {{ display:inline-block; padding:6px 12px; background:white; border:1px solid var(--rule);
-       border-radius:6px; margin-right:8px; font-size:13px; }}
-.meta {{ color:#6b6358; font-size:12px; }}
-table {{ width:100%; border-collapse:collapse; margin:8px 0; font-size:12.5px; }}
-th, td {{ text-align:left; padding:4px 8px; border-bottom:1px solid var(--rule); vertical-align:top; }}
-td.num {{ text-align:right; font-variant-numeric:tabular-nums; }}
-th {{ background:rgba(0,0,0,0.03); }}
-.heatmap th.vert {{ writing-mode:vertical-rl; text-align:left; padding:4px 2px;
-    font-size:10px; line-height:1.1; min-width:18px; }}
-.heatmap .vmeta {{ color:#aaa; }}
-.heatmap td.cell {{ text-align:center; font-variant-numeric:tabular-nums; padding:3px 4px; }}
-.heatmap td.nocell {{ background:repeating-linear-gradient(45deg,#f6f4ee 0 6px,transparent 6px 12px); }}
-.heatmap td.itemid {{ font-family:Menlo,Consolas,monospace; font-size:11.5px; color:#555; }}
-.heatmap td.track {{ color:#888; font-size:11px; }}
-.svg-wrap {{ background:white; border:1px solid var(--rule); border-radius:6px; padding:8px; }}
-</style></head><body>
-<h1>forethought-bench — history</h1>
-<p class='meta'>{len(runs)} runs · versions: {", ".join(versions)} · latest: <code>{latest.name}</code> ({latest.timestamp[:19]})</p>
-<div>
-  <span class='kpi'><strong>Latest composite</strong>: {latest.overall_composite:.3f}</span>
-  <span class='kpi'><strong>Latest n</strong>: {latest.n_total}</span>
-  <span class='kpi'><strong>Bench v</strong>: {latest.benchmark_version}</span>
+:root {{
+  --bg: #fbfaf4;
+  --ink: #2f2a26;
+  --mu: #7a7068;
+  --rule: #e6e0d4;
+  --up: #16a34a; --up-bg: #dcfce7; --up-border: #86efac;
+  --dn: #dc2626; --dn-bg: #fee2e2; --dn-border: #fca5a5;
+  --fl: #92400e; --fl-bg: #fef3c7; --fl-border: #fde68a;
+  --card: #fff;
+  --indigo: #6366f1;
+}}
+* {{ box-sizing: border-box; margin: 0; padding: 0; }}
+body {{
+  background: var(--bg);
+  color: var(--ink);
+  font: 15px/1.65 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  max-width: 1360px;
+  margin: 0 auto;
+  padding: 24px 28px 80px;
+}}
+
+/* ── Header ── */
+.page-header {{ margin-bottom: 6px; }}
+h1 {{ font-size: 24px; font-weight: 800; letter-spacing: -0.4px; }}
+.meta {{ color: var(--mu); font-size: 12.5px; margin: 4px 0 0; }}
+.meta code {{ background: var(--rule); padding: 1px 5px; border-radius: 3px; font-size: 11.5px; }}
+
+/* ── Tooltip system ── */
+.tip {{
+  cursor: help;
+  border-bottom: 1.5px dotted var(--mu);
+  position: relative;
+}}
+.tip::after {{
+  content: attr(data-tip);
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #1e1b18;
+  color: #f5f3ee;
+  font-size: 12.5px;
+  font-weight: 400;
+  line-height: 1.5;
+  padding: 8px 12px;
+  border-radius: 7px;
+  width: max-content;
+  max-width: 320px;
+  white-space: normal;
+  z-index: 200;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.12s;
+  box-shadow: 0 4px 16px rgba(0,0,0,.22);
+  text-align: left;
+}}
+.tip:hover::after {{ opacity: 1; }}
+
+/* ── Banner ── */
+.banner {{
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border-radius: 10px;
+  margin: 18px 0 20px;
+  font-size: 16px;
+}}
+.banner-improve {{ background: var(--up-bg);  color: var(--up);  border: 1.5px solid var(--up-border); }}
+.banner-regress  {{ background: var(--dn-bg);  color: var(--dn);  border: 1.5px solid var(--dn-border); }}
+.banner-flat     {{ background: var(--fl-bg);  color: var(--fl);  border: 1.5px solid var(--fl-border); }}
+.banner-icon  {{ font-size: 28px; line-height: 1; flex-shrink: 0; }}
+.banner-msg   {{ font-weight: 700; font-size: 17px; }}
+.banner-detail {{ font-size: 12.5px; font-family: Menlo, Consolas, monospace; opacity: 0.85; }}
+
+/* ── KPI cards ── */
+.kpi-row {{ display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 24px; }}
+.kpi {{
+  background: var(--card);
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  padding: 12px 18px;
+  min-width: 130px;
+}}
+.kpi-label {{ font-size: 11px; color: var(--mu); text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 2px; }}
+.kpi-value {{ font-size: 30px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.2; }}
+.kpi-sub   {{ font-size: 11.5px; color: var(--mu); margin-top: 1px; }}
+
+/* ── Collapsible sections ── */
+.section {{
+  margin-top: 20px;
+  border: 1px solid var(--rule);
+  border-radius: 10px;
+  overflow: hidden;
+}}
+.section summary {{
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 13px 16px;
+  cursor: pointer;
+  user-select: none;
+  background: rgba(0,0,0,.018);
+  border-bottom: 1px solid transparent;
+  transition: background 0.1s;
+  list-style: none;
+}}
+.section summary::-webkit-details-marker {{ display: none; }}
+.section[open] summary {{ border-bottom-color: var(--rule); }}
+.section summary:hover {{ background: rgba(0,0,0,.035); }}
+.section-toggle {{
+  font-size: 10px;
+  color: var(--mu);
+  width: 16px;
+  flex-shrink: 0;
+  transition: transform 0.15s;
+}}
+.section[open] .section-toggle {{ transform: rotate(90deg); }}
+.section-title {{
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+  flex: 1;
+}}
+.section-hint {{
+  font-size: 12px;
+  color: var(--mu);
+  font-weight: 400;
+}}
+.section-body {{ padding: 16px; }}
+.section-body.no-pad {{ padding: 0; }}
+
+/* ── Regen box ── */
+.regen-body {{
+  padding: 14px 16px;
+  font-size: 13px;
+  line-height: 1.7;
+}}
+.regen-body p {{ margin-bottom: 8px; }}
+.regen-body p:last-child {{ margin-bottom: 0; }}
+.regen-body code {{
+  background: #1e1b18;
+  color: #e8e3da;
+  padding: 8px 14px;
+  border-radius: 6px;
+  display: block;
+  font-family: Menlo, Consolas, monospace;
+  font-size: 12.5px;
+  margin: 6px 0;
+  overflow-x: auto;
+  white-space: nowrap;
+}}
+
+/* ── Score colour legend ── */
+.score-legend {{
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  margin-bottom: 12px;
+  flex-wrap: wrap;
+}}
+.leg-label {{ color: var(--mu); margin-right: 2px; }}
+.leg {{
+  padding: 2px 8px;
+  border-radius: 4px;
+  font-family: Menlo, Consolas, monospace;
+  font-size: 11.5px;
+  cursor: default;
+  border: 1px solid rgba(0,0,0,.08);
+}}
+
+/* ── Chart ── */
+.chart-scroll {{ overflow-x: auto; }}
+
+/* ── Tables (shared) ── */
+table {{ width: 100%; border-collapse: collapse; font-size: 13px; }}
+th, td {{ text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--rule); vertical-align: middle; }}
+th {{ background: rgba(0,0,0,.025); font-size: 11.5px; font-weight: 600; color: var(--mu); cursor: default; }}
+th[title] {{ cursor: help; border-bottom: 1.5px dotted var(--mu); }}
+td.num {{ text-align: right; font-variant-numeric: tabular-nums; font-family: Menlo, Consolas, monospace; font-size: 12.5px; }}
+td.muted {{ color: var(--mu); }}
+.sc {{ font-weight: 700; }}
+.delta-up {{ color: var(--up);  font-weight: 700; }}
+.delta-dn {{ color: var(--dn);  font-weight: 700; }}
+.delta-fl {{ color: var(--mu); }}
+.best-badge {{
+  display: inline-block;
+  font-size: 10.5px;
+  background: #fef9c3;
+  color: #854d0e;
+  border: 1px solid #fde047;
+  border-radius: 4px;
+  padding: 0 6px;
+  line-height: 20px;
+  vertical-align: middle;
+  white-space: nowrap;
+}}
+.tn {{ font-weight: 700; font-size: 14px; }}
+
+/* ── Heatmap ── */
+.heatmap-scroll {{ overflow-x: auto; }}
+.heatmap {{ width: auto; min-width: 100%; }}
+.heatmap th {{
+  writing-mode: vertical-rl;
+  text-align: left;
+  padding: 8px 3px;
+  font-size: 10.5px;
+  min-width: 24px;
+  white-space: nowrap;
+  border-bottom: 1px solid var(--rule);
+}}
+.heatmap th.col-lat {{ background: #eef2ff; }}
+.heatmap td.hc {{
+  text-align: center;
+  padding: 4px 5px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  font-family: Menlo, Consolas, monospace;
+  white-space: nowrap;
+  cursor: default;
+}}
+.heatmap td.hlat  {{ outline: 2px solid var(--indigo); outline-offset: -2px; }}
+.heatmap td.hm    {{ background: repeating-linear-gradient(45deg,#edeae2 0 5px,transparent 5px 10px); }}
+.heatmap td.hi    {{ font-family: Menlo, Consolas, monospace; font-size: 11.5px; color: #555; white-space: nowrap; }}
+.heatmap td.ht    {{ color: #bbb; font-size: 11px; white-space: nowrap; }}
+
+/* ── History table ── */
+.rn  {{ font-family: Menlo, Consolas, monospace; font-size: 11.5px; }}
+.ts  {{ font-size: 12.5px; color: var(--mu); }}
+.row-lat {{ background: #f4f6ff; }}
+.row-lat td {{ font-weight: 600; }}
+</style>
+</head><body>
+
+<div class="page-header">
+  <h1>forethought-bench</h1>
+  <p class="meta">
+    {len(runs)} runs &middot; bench v{", ".join(versions)} &middot;
+    latest: <code>{latest.name}</code> &middot;
+    generated: {now_utc}
+  </p>
 </div>
-<h2>Composite over time</h2>
-<div class='svg-wrap'>{chart_svg}</div>
-<h2>Latest per-track</h2>
-<table>
-<thead><tr><th>Track</th><th class='num'>n</th><th class='num'>Composite</th><th class='num'>Valid cite</th><th class='num'>Ans sup</th></tr></thead>
-<tbody>{"".join(track_rows)}</tbody>
-</table>
-<h2>Per-item × per-run heatmap</h2>
-{heatmap_html}
+
+{banner_html}
+
+<div class="kpi-row">
+  <div class="kpi">
+    <div class="kpi-label">Latest overall</div>
+    <div class="kpi-value">{overall_latest:.3f}</div>
+    <div class="kpi-sub">{latest.n_total} items &middot; {latest.mode}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">vs Previous run</div>
+    <div class="kpi-value" style="color:{delta_color}">{f"{overall_delta:+.3f}" if overall_delta is not None else "—"}</div>
+    <div class="kpi-sub" title="{prev.name if prev else ''}">{prev_short}</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Best ever</div>
+    <div class="kpi-value">{overall_best:.3f}</div>
+    <div class="kpi-sub">across {len(runs)} runs</div>
+  </div>
+  <div class="kpi">
+    <div class="kpi-label">Bench version</div>
+    <div class="kpi-value" style="font-size:22px">{latest.benchmark_version}</div>
+    <div class="kpi-sub">{latest.item_set_hash} (item fingerprint)</div>
+  </div>
+</div>
+
+<!-- Regeneration info -->
+<details class="section">
+  <summary>
+    <span class="section-toggle">▶</span>
+    <span class="section-title">How to regenerate this dashboard</span>
+    <span class="section-hint">run after each bench run to keep it current</span>
+  </summary>
+  <div class="regen-body">
+    <p>This file is generated from the <code style="display:inline;background:var(--rule);color:inherit;padding:1px 5px;border-radius:3px;font-size:12px">bench/logs/</code> eval logs — one <code style="display:inline;background:var(--rule);color:inherit;padding:1px 5px;border-radius:3px;font-size:12px">.eval</code> file per track per run. Regenerate any time by running:</p>
+    <code>cd bench &amp;&amp; .venv/bin/python scripts/history.py dashboard --out dashboard.html</code>
+    <p>To append it automatically after a bench run, add the line above to the end of <code style="display:inline;background:var(--rule);color:inherit;padding:1px 5px;border-radius:3px;font-size:12px">scripts/run_librarian.sh</code>. The dashboard reads all run directories under <code style="display:inline;background:var(--rule);color:inherit;padding:1px 5px;border-radius:3px;font-size:12px">logs/</code> each time, so older history is always included automatically.</p>
+  </div>
+</details>
+
+<!-- Composite over time chart -->
+<details class="section" open>
+  <summary>
+    <span class="section-toggle">▶</span>
+    <span class="section-title">Composite over time</span>
+    <span class="section-hint">per-track scores across all {len(runs)} runs — hover dots for score &amp; run name</span>
+  </summary>
+  <div class="section-body">
+    <div class="chart-scroll">{chart_svg}</div>
+  </div>
+</details>
+
+<!-- Per-track breakdown -->
+<details class="section" open>
+  <summary>
+    <span class="section-toggle">▶</span>
+    <span class="section-title">Latest per-track</span>
+    <span class="section-hint">scores from the most recent run vs previous and all-time best — hover track names for what each track tests</span>
+  </summary>
+  <div class="section-body">
+    {score_legend}
+    <table>
+    <thead><tr>
+      <th>Track</th>
+      <th class="num" title="{_METRIC_TIPS['n']}">n</th>
+      <th class="num" title="{_METRIC_TIPS['Latest']}">Latest</th>
+      <th class="num" title="{_METRIC_TIPS['Previous']}">Previous</th>
+      <th class="num" title="{_METRIC_TIPS['Delta']}">Δ vs prev</th>
+      <th></th>
+      <th class="num" title="{_METRIC_TIPS['Best ever']}">Best ever</th>
+      <th class="num" title="{_METRIC_TIPS['Valid cite%']}">Valid cite%</th>
+      <th class="num" title="{_METRIC_TIPS['Ans sup']}">Ans sup</th>
+    </tr></thead>
+    <tbody>{"".join(track_rows)}</tbody>
+    </table>
+  </div>
+</details>
+
+<!-- Per-item heatmap -->
+<details class="section" open>
+  <summary>
+    <span class="section-toggle">▶</span>
+    <span class="section-title">Per-item heatmap</span>
+    <span class="section-hint">every item &times; every run — ★ = personal best score, outlined column = latest run, hover cells for exact score</span>
+  </summary>
+  <div class="section-body no-pad">
+    <div class="heatmap-scroll">{heatmap_html}</div>
+  </div>
+</details>
+
+<!-- Run history -->
+<details class="section">
+  <summary>
+    <span class="section-toggle">▶</span>
+    <span class="section-title">Run history</span>
+    <span class="section-hint">most recent {min(25, len(runs))} of {len(runs)} runs, latest highlighted</span>
+  </summary>
+  <div class="section-body no-pad">
+    <table>
+    <thead><tr>
+      <th>Timestamp</th><th>Run name</th><th class="num">v</th>
+      {track_th}
+      <th class="num" title="n-weighted composite across all tracks in this run">Overall</th>
+      <th class="num" title="Number of items scored">n</th>
+    </tr></thead>
+    <tbody>{"".join(hist_rows)}</tbody>
+    </table>
+  </div>
+</details>
+
 </body></html>
 """
     Path(out_path).write_text(page)
     print(f"wrote {out_path}")
+
+
+def cmd_noisy_items(runs: list[RunSummary], min_runs: int, version: str | None) -> None:
+    """Per-item σ ranking. Filters to items with ≥`min_runs` data points so a
+    single bad run doesn't define the noisy list. Pass `version` to restrict
+    to runs at one BENCHMARK_VERSION (avoids mixing pre/post-iteration noise
+    with real benchmark-shape changes).
+    """
+    matrix: dict[tuple[str, str], list[float]] = defaultdict(list)
+    for r in runs:
+        if version and r.benchmark_version != version:
+            continue
+        for t, ts in r.tracks.items():
+            for iid, v in ts.items:
+                matrix[(t, iid)].append(v)
+    rows: list[tuple[float, str, str, float, float, int]] = []
+    for (t, iid), scores in matrix.items():
+        if len(scores) < min_runs:
+            continue
+        m = mean(scores)
+        if len(scores) >= 2:
+            var = sum((s - m) ** 2 for s in scores) / (len(scores) - 1)
+            sd = var ** 0.5
+        else:
+            sd = 0.0
+        rng = max(scores) - min(scores)
+        rows.append((sd, t, iid, m, rng, len(scores)))
+    rows.sort(reverse=True)
+    print(f"# Noisiest items (σ across ≥{min_runs} runs)\n")
+    print(f"| Track | Item | n | mean | σ | range |")
+    print(f"|---|---|---|---|---|---|")
+    for sd, track, iid, m, rng, n in rows:
+        flag = "⚠" if sd > 0.05 else ""
+        print(f"| {track} | {iid} | {n} | {m:.3f} | {sd:.3f} {flag} | {rng:.3f} |")
 
 
 def cmd_variance(runs: list[RunSummary], run_names: list[str]) -> None:
@@ -690,6 +1244,20 @@ def cmd_heatmap(runs: list[RunSummary], track: str | None = None) -> None:
     print("Versions: " + ", ".join(f"`{n[-15:]}`=v{run_versions[n]}" for n in run_names))
 
 
+_RUN_NUM_RE = re.compile(r'^r(\d+)_')
+
+
+def cmd_next_name(runs: list[RunSummary], description: str) -> None:
+    """Print the next r{nn}_description directory name to use for a new run."""
+    max_n = 0
+    for r in runs:
+        m = _RUN_NUM_RE.match(r.name)
+        if m:
+            max_n = max(max_n, int(m.group(1)))
+    slug = re.sub(r'[^a-z0-9]+', '_', description.lower()).strip('_')
+    print(f"r{max_n + 1:02d}_{slug}")
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -712,9 +1280,19 @@ def main() -> int:
     p_var.add_argument("runs", nargs="+", help="run names / suffixes")
     p_dash = sub.add_parser("dashboard", help="one-page HTML history (KPIs + chart + heatmap)")
     p_dash.add_argument("--out", default="history.html", help="output HTML path (default history.html)")
+    p_noisy = sub.add_parser("noisy-items", help="rank items by σ across runs")
+    p_noisy.add_argument("--min-runs", type=int, default=2,
+                         help="minimum runs an item must appear in (default 2)")
+    p_noisy.add_argument("--version", default=None,
+                         help="only consider runs at this BENCHMARK_VERSION (e.g. 0.3.0)")
+    p_next = sub.add_parser("next-name", help="print the next r{nn}_description directory name")
+    p_next.add_argument("description", help="short description of the change, e.g. 'fix judge temperature'")
     args = parser.parse_args()
 
     runs = discover_runs(args.logs_dir)
+    if args.cmd == "next-name":
+        cmd_next_name(runs, args.description)
+        return 0
     if not runs:
         print(f"no runs found in {args.logs_dir}", file=sys.stderr)
         return 1
@@ -735,6 +1313,8 @@ def main() -> int:
         cmd_variance(runs, args.runs)
     elif args.cmd == "dashboard":
         cmd_dashboard(runs, args.out)
+    elif args.cmd == "noisy-items":
+        cmd_noisy_items(runs, args.min_runs, args.version)
     return 0
 
 

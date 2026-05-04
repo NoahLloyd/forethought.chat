@@ -1,0 +1,13 @@
+{
+  "name": "forethought-bench-dashboard",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "observable preview --host 0.0.0.0 --port 3003",
+    "build": "observable build"
+  },
+  "dependencies": {
+    "@observablehq/framework": "^1.13.0"
+  }
+}

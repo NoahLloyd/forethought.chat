@@ -119,6 +119,39 @@ inspect eval forethought_bench/librarian/tasks/claim_recall.py \
 The `--model` flag is required by Inspect for telemetry but unused by our
 solver (we hit the chat app's HTTP endpoint directly).
 
+## History and validation tooling
+
+Cross-run comparison and validation scripts under `scripts/`:
+
+```bash
+# Cross-run history (markdown).
+.venv/bin/python scripts/history.py list                      # all runs
+.venv/bin/python scripts/history.py compare A B               # per-item diff
+.venv/bin/python scripts/history.py details RUN               # one run
+.venv/bin/python scripts/history.py item ITEM_ID              # one item over time
+.venv/bin/python scripts/history.py heatmap [--track T]       # rows=items × cols=runs
+.venv/bin/python scripts/history.py timeline                  # grouped by version
+.venv/bin/python scripts/history.py variance RUN_A RUN_B ...  # σ per track
+
+# Single-page HTML dashboard (KPIs, SVG line chart, item × run heatmap).
+.venv/bin/python scripts/history.py dashboard --out logs/history.html
+
+# A2 (answer-support) discriminative-power probe.
+.venv/bin/python scripts/validate_a2.py --n 8                 # default pct-shift mutation
+.venv/bin/python scripts/validate_a2.py --mutation fake-claim # whole-claim hallucination
+.venv/bin/python scripts/validate_a2.py --judge-passes 3      # median-of-3 to control judge variance
+
+# A1 (claim-anchoring) gold-set spot-check.
+.venv/bin/python scripts/a1_spotcheck.py extract --from-run logs/final_run --n 30
+# (hand-label the gold_label column in iteration/a1_spotcheck.csv, then:)
+.venv/bin/python scripts/a1_spotcheck.py regrade iteration/a1_spotcheck.csv
+```
+
+`compare` and `variance` flag benchmark-version and item-set fingerprint
+mismatches so you don't accidentally treat a scoring-shape change as a
+regression. The full validation protocol and pass/fail thresholds live in
+`bench/iteration/06-validation-protocol.md`.
+
 ## Tiers
 
 Items have a `tier` field that controls when they run.
