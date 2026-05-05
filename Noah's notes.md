@@ -45,4 +45,13 @@ Ran two more full bench runs at the same code to estimate variance properly. Als
 
 **Fabrication is gone, confirmed.** Across all 3 confirmation runs, fab rate stays at 0.0% across every track. The r19 finding that the citation discipline rules eliminate fabrication holds up.
 
-**Outlier item: `claim_recall_001`** swung 0.918 → 0.384 → 0.823 across r19/r20/r21 (range 0.534) — judge stochasticity dominates this item's score. `synthesis_002_lock_in_window` also swung 0.877 → 0.862 → 0.640 (range 0.237). These are the noise sources iteration/08 already flagged: judge default-temperature with no exposed seed control. No code fix from this iteration; the multi-judge median path in iteration/08's "next steps" is still the right lever if the team wants tighter σ.
+**Variance has two distinct sources** (drilling into the two largest swings in iteration/09):
+
+- `claim_recall_001` (range 0.534) is **agent variance**, not judge variance — the agent surfaces "~50%" in r19 and r21 but says *"the paper does not give a probability"* in r20. The 0.5-weighted correctness sub-scorer drops to 0 because the agent gave a wrong answer. Same prompt, different retrieval / synthesis. Multi-judge median wouldn't help; agent retries would.
+- `synthesis_002_lock_in_window` (range 0.237) is **judge variance** — same agent prose (4.1–4.7K chars, similar shape across runs) but the elements_rubric judge said 3 PRESENT in r19/r20 then 5 MISSING in r21. Multi-judge median directly fixes this case.
+
+**Most of `claim_recall`'s track-level σ comes from one item.** Per-item σ across r19/r20/r21: claim_recall_001 σ=0.285, the other 4 items all σ≤0.056. Track σ with item 001 = 0.051; without = 0.015 (well under iteration/06's 0.025 target). The variance picture is "one bad item dominating," not "the bench is broadly noisy."
+
+**`claim_recall_004` is consistently *failing*** at composite ~0.40 (σ=0.014) — agent reliably can't surface the "geometric mean of 5X" passage despite the chunk being in the corpus and the agent correctly identifying the right paper. BM25 isn't returning that chunk on the agent's queries; agent ends up reporting 10X / 28X / 8X instead. Real agent-retrieval failure mode, not noise.
+
+**Fabrication is gone, confirmed** across all 3 confirmation runs (fab=0.0% every track). But the r16→r19 fab-rate cliff has TWO sources, not one: (1) the prompt-rewrite citation discipline rules (real agent improvement), AND (2) commit `841c3a4`'s `corpus/loader.py` fix that tries both `record.text` and `record.body` for passage matching. Pre-fix, when the agent quoted a passage with embedded markdown links, the matcher missed it and graded FABRICATED. Iteration/07's "fab dropped due to prompt rewrite" framing should be reread with this in mind — both changes contributed.

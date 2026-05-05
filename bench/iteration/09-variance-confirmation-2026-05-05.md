@@ -56,6 +56,45 @@ at p<0.05. Only definitions clears that bar; the others are 1.3-2× over.
 The arguments / synthesis gains hold up clearly even with the lucky-draw r19
 correction. Definitions and claim_recall valid-rate "gains" do not.
 
+## Fabrication and unsupportive rates
+
+The citation-discipline prompt was originally pitched as eliminating
+fabricated citations (the worst trust failure). That holds up cleanly:
+
+| Track | r16 fab | r19/r20/r21 fab | r16 unsup | r19/r20/r21 unsup |
+|---|---|---|---|---|
+| definitions | 1.9% | 0.0% / 0.0% / 0.0% | 0.0% | 6.0% / 2.0% / 0.0% |
+| claim_recall | 5.3% | 0.0% / 0.0% / 0.0% | 10.5% | 10.5% / 11.1% / 18.8% |
+| arguments | **16.4%** | 0.0% / 0.0% / 0.0% | 5.5% | 3.1% / 0.0% / 11.3% |
+| synthesis | **14.8%** | 0.0% / 0.0% / 0.0% | 0.0% | 5.4% / 2.8% / 11.8% |
+
+**Fab rate dropped from 16.4%/14.8% on arguments/synthesis to 0% on all
+three confirmation runs.** Two changes contributed and they're worth
+separating:
+
+- **Prompt-rewrite component (r16)**: the citation-discipline rules in
+  `agent/src/prompt.ts` make the agent stop inventing URLs and quotes
+  that don't exist in the cited paper.
+- **Corpus-matcher fix (commit 841c3a4, between r16 and r19)**:
+  `corpus/loader.py::find_passage` now tries both `record.text`
+  (markdown stripped) and `record.body` (raw markdown). Pre-fix, when
+  the agent quoted a passage containing markdown link syntax (`[name](url)`)
+  that lives in `body` but not `text`, the matcher returned no hit and
+  the verdict was FABRICATED. Post-fix it correctly finds the passage.
+
+So part of r16→r19's fab-rate cliff (16.4% → 0% on arguments) is a real
+agent improvement and part is a bench-side false-positive fix. Both are
+real wins, but the iteration/07 framing of "fab dropped due to the
+prompt rewrite" should be reread with this in mind: the prompt did
+improve, AND the bench used to overcount fab.
+
+The shift moved some of that mass into UNSUPPORTIVE (passage exists but
+doesn't back the specific claim), which is a less damaging failure mode
+but still costs valid%. Synthesis unsup went from 0% → ~6.7% mean;
+arguments oscillates around 4-5% mean. Net for the user: the agent will
+no longer make up sources, but sometimes it cites a real paper for a
+claim that paper doesn't quite say. Easier to spot, easier to fix.
+
 ## Per-item composite swings
 
 Big-range items (range = max - min across r19/r20/r21):
@@ -123,9 +162,42 @@ agent contributes too.
    most of the work (+0.033 with σ=0.012, the only track that beats noise
    cleanly). Other tracks are inside noise.
 4. **claim_recall is noisier than the iteration/08 σ=0.009 estimate**: the
-   3-run σ here is 0.051. iteration/08 was on a 3-run smoke at the same
-   code; this is at a different code shape (post-r16 rewrite) which may
-   have introduced more per-item variance.
+   3-run σ here is 0.051. The iteration/08 baseline was at a different
+   code shape (pre-r16). But the bigger story: **almost all** of
+   claim_recall's track-level σ comes from one item.
+
+   Per-item σ across r19/r20/r21:
+
+   | Item | mean | σ | range |
+   |---|---|---|---|
+   | claim_recall_001 | 0.708 | **0.285** | 0.534 |
+   | claim_recall_004 | 0.395 | 0.014 | 0.026 |
+   | claim_recall_006 | 0.975 | 0.025 | 0.050 |
+   | claim_recall_007 | 0.831 | 0.050 | 0.097 |
+   | claim_recall_008 | 0.852 | 0.056 | 0.110 |
+
+   Track σ **with** claim_recall_001 = 0.051. Track σ **without** = 0.015
+   (well under the 0.025 target). Item 001 accounts for ~87% of the
+   track's run-to-run variance. The variance picture is "one bad item
+   dominating," not "the bench is broadly noisy."
+
+5. **claim_recall_004 is consistently *failing*** (σ=0.014, mean=0.395).
+   The agent reliably can't surface the "geometric mean of 5X" passage
+   despite the chunk being in the corpus (verified). Spot-check: a direct
+   BM25 query like *"When asked outright about total speed-up responses
+   varied geometric mean 5X"* returns the right chunk only at position
+   ~7 — *behind* a summary-table chunk from the same paper that has
+   {10X, 28X, 21X, 15X} but not the geometric-mean number. The agent's
+   prompt defaults `k=6`, so this chunk usually doesn't surface even
+   with a fairly direct query. Combined: the chunk also contains
+   "geometric mean of 14X" for a second method, so even when the agent
+   does retrieve it, comprehension is hard.
+
+   This is a real bench-detected failure — the bench is correctly
+   grading it INCORRECT — but the *cause* is retrieval / chunk-design
+   on a chunk-with-multiple-numbers, not agent reasoning per se. Fix is
+   out-of-scope for this iteration; surfacing it for a future retrieval
+   tuning iteration.
 
 ## Next iteration
 
