@@ -52,6 +52,19 @@ class ClaudeCodeJudge(Judge):
         self._timeout = timeout_s
 
     async def complete(self, req: JudgeRequest) -> JudgeResponse:
+        last_err: RuntimeError | None = None
+        for attempt in range(3):
+            try:
+                return await self._complete_attempt(req)
+            except RuntimeError as e:
+                if "claude CLI failed (exit " not in str(e) or attempt == 2:
+                    raise
+                last_err = e
+                await asyncio.sleep(2.0 + 3.0 * attempt)
+        assert last_err is not None
+        raise last_err
+
+    async def _complete_attempt(self, req: JudgeRequest) -> JudgeResponse:
         argv = [
             self._claude_path,
             "-p",

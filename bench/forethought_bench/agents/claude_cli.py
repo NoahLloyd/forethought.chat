@@ -163,6 +163,27 @@ class ClaudeCliAgent(Agent):
     async def _run_one(
         self, question: str, system_prompt: str, sources_path: Path
     ) -> AgentOutput:
+        last_err: RuntimeError | None = None
+        for attempt in range(3):
+            try:
+                return await self._run_one_attempt(
+                    question, system_prompt, sources_path
+                )
+            except RuntimeError as e:
+                if "claude -p failed (exit " not in str(e) or attempt == 2:
+                    raise
+                last_err = e
+                # Clear any partial sources written by a crashed attempt so
+                # a successful retry's output isn't contaminated.
+                with contextlib.suppress(FileNotFoundError):
+                    sources_path.write_text("", encoding="utf-8")
+                await asyncio.sleep(2.0 + 3.0 * attempt)
+        assert last_err is not None
+        raise last_err
+
+    async def _run_one_attempt(
+        self, question: str, system_prompt: str, sources_path: Path
+    ) -> AgentOutput:
         argv = [
             self._claude_path,
             "-p",
