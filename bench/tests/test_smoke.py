@@ -12,6 +12,8 @@ from pathlib import Path
 from forethought_bench.agents.forethought_chat import (
     extract_citations_from_markers,
 )
+from forethought_bench.corpus import Corpus
+from forethought_bench.corpus.loader import CorpusRecord
 from forethought_bench.schema import (
     Item,
     NumericTarget,
@@ -143,6 +145,36 @@ def test_items_parse() -> None:
         assert item.source_passage
         if item.claim_type == "numeric":
             assert item.numeric_target is not None
+
+
+def test_corpus_find_passage_falls_back_to_body_when_text_strips_markdown() -> None:
+    """Regression: the agent often quotes passages containing markdown link
+    syntax (e.g. `[name](url)`). That syntax lives in `record.body` but is
+    stripped from `record.text`. Pre-fix, `find_passage` only searched
+    `record.text` and returned None for body-only passages — leading the
+    citation grader to mark real citations as FABRICATED. The matcher must
+    try both candidates."""
+    rec = CorpusRecord(
+        url="https://example.com/paper",
+        title="Paper",
+        body=(
+            "The argument relies on three points. "
+            "First, see [Davidson 2025](https://www.forethought.org/research/foo) "
+            "for the canonical framing of compute bottlenecks. "
+            "Second, lock-in becomes feasible only with stable storage."
+        ),
+        text=(
+            "The argument relies on three points. "
+            "First, see Davidson 2025 for the canonical framing of compute bottlenecks. "
+            "Second, lock-in becomes feasible only with stable storage."
+        ),
+    )
+    corpus = Corpus([rec])
+    # Body-style passage with the embedded markdown link syntax.
+    body_quote = "First, see [Davidson 2025](https://www.forethought.org/research/foo) for the canonical framing"
+    match = corpus.find_passage(rec.url, body_quote, threshold=0.80)
+    assert match is not None, "matcher should find body-only passages, not just stripped text"
+    assert match.record_url == rec.url
 
 
 def test_extract_citations_from_markers_threads_snippets() -> None:

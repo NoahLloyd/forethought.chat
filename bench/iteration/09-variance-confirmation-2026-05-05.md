@@ -31,6 +31,8 @@ a normal output that gets graded the same way as a non-retry sample. Unit-
 verified for the three cases (transient → retry succeeds; non-transient →
 no retry; persistent → 3 attempts then raise).
 
+Also added a regression test in `tests/test_smoke.py::test_corpus_find_passage_falls_back_to_body_when_text_strips_markdown` for the `corpus/loader.py` fix that landed in commit 841c3a4 (see "Fabrication and unsupportive rates" below for why that fix is load-bearing for fab-rate interpretation). Without the test, a future cleanup of the matcher could silently regress fab to ~16% on arguments without any test signal.
+
 ## Composite (3-run mean vs r16)
 
 | Track | r16 | r19 | r20 | r21 | mean | σ | Δ vs r16 | signal? |
@@ -68,25 +70,46 @@ fabricated citations (the worst trust failure). That holds up cleanly:
 | arguments | **16.4%** | 0.0% / 0.0% / 0.0% | 5.5% | 3.1% / 0.0% / 11.3% |
 | synthesis | **14.8%** | 0.0% / 0.0% / 0.0% | 0.0% | 5.4% / 2.8% / 11.8% |
 
-**Fab rate dropped from 16.4%/14.8% on arguments/synthesis to 0% on all
-three confirmation runs.** Two changes contributed and they're worth
-separating:
+**Fab rate is 0% across all 3 confirmation runs across all 4 tracks.**
+That holds. But unpacking the trajectory exposes a misattribution in
+iteration/07's framing of *why*:
 
-- **Prompt-rewrite component (r16)**: the citation-discipline rules in
-  `agent/src/prompt.ts` make the agent stop inventing URLs and quotes
-  that don't exist in the cited paper.
-- **Corpus-matcher fix (commit 841c3a4, between r16 and r19)**:
-  `corpus/loader.py::find_passage` now tries both `record.text`
-  (markdown stripped) and `record.body` (raw markdown). Pre-fix, when
-  the agent quoted a passage containing markdown link syntax (`[name](url)`)
-  that lives in `body` but not `text`, the matcher returned no hit and
-  the verdict was FABRICATED. Post-fix it correctly finds the passage.
+| Run | When | Arguments fab% | Note |
+|---|---|---|---|
+| r15 | 2026-05-03 (pre-r16) | 8.2% | post-A1A2A3 baseline |
+| r16 | 2026-05-04 14:01 | **16.4%** | chunk_text + prompt rewrite |
+| (commit 841c3a4) | 2026-05-04 17:24 | — | `corpus/loader.py::find_passage` now tries both `record.text` and `record.body` |
+| r19 | 2026-05-04 18:14 | 0.0% | first run post-corpus-fix |
 
-So part of r16→r19's fab-rate cliff (16.4% → 0% on arguments) is a real
-agent improvement and part is a bench-side false-positive fix. Both are
-real wins, but the iteration/07 framing of "fab dropped due to the
-prompt rewrite" should be reread with this in mind: the prompt did
-improve, AND the bench used to overcount fab.
+The chunk_text + prompt rewrite (r16) actually *raised* arguments fab from
+8.2% → 16.4%: the agent cited more chunks (more surface area) and the
+new prompt encouraged tighter sourcing, including verbatim quotes — but
+those verbatim quotes often contained markdown-link syntax that lived
+only in `record.body`, not the markdown-stripped `record.text` the
+matcher searched. Pre-fix matcher: "I can't find this quote in the
+cited paper" → FABRICATED. Wrong.
+
+Commit 841c3a4 fixed the matcher to try both `text` and `body`. That
+single bench-side fix is responsible for the 16.4% → 0% drop on
+arguments fab between r16 and r19, not the prompt.
+
+**Decomposing r15 → r19 on arguments** (the cleanest case):
+
+| Stage | valid% | fab% | Driver |
+|---|---|---|---|
+| r15 (post-A1A2A3, pre-r16) | 26.0% | 8.2% | baseline |
+| r16 (after chunk_text + prompt) | 72.7% | 16.4% | prompt rewrite: +46.7pp valid (real agent gain), +8.2pp fab (more aggressive citation, more verbatim quotes triggering matcher false-positives) |
+| r19 (after corpus fix) | 92.3% | 0.0% | matcher fix: re-counts "fabricated" → "valid", explaining most of the +19.6pp valid and -16.4pp fab cliff |
+
+**Bottom line**: the prompt rewrite is responsible for ~70% of the
+r15→r19 valid% gain (the 26→73 step). The corpus matcher fix is
+responsible for ~30% of valid% gain *and* almost all of the fab cliff.
+r19's note in Noah's notes — "fabrication dropped from 10% to 0%
+across all tracks. So the citation discipline rules in r16's prompt
+rewrite are now landing reliably" — has the attribution backwards.
+The prompt rewrite pushed fab UP (16.4% on arguments). The bench-side
+matcher fix dropped it to 0%. The discipline rules are still landing,
+just on `valid%` not on `fab%`.
 
 The shift moved some of that mass into UNSUPPORTIVE (passage exists but
 doesn't back the specific claim), which is a less damaging failure mode
