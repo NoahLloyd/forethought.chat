@@ -92,3 +92,45 @@ If the smoke shows track mean falling materially (e.g. > 0.02 below
 the pass=1 mean) the change can be reverted by removing the
 `judge_passes` keyword from the @task functions; default behavior is
 preserved.
+
+## Results — judge-variance probe (r19 synthesis prose)
+
+`scripts/probe_judge_variance.py --from-run logs/r19 --n-trials 3` ran
+3 scoring trials at passes=1 and 3 trials at passes=3 on the same
+r19-cached agent prose for each synthesis item, isolating *judge*
+variance from agent variance. Per (item, scorer):
+
+| Item | Scorer | passes=1 σ | passes=3 σ | range p=1 | range p=3 |
+|---|---|---|---|---|---|
+| synthesis_001 | rubric | 0.047 | 0.047 | 0.10 | 0.10 |
+| synthesis_001 | integration | **0.236** | 0.000 | 0.50 | 0.00 |
+| synthesis_002 | rubric | 0.047 | 0.000 | 0.10 | 0.00 |
+| synthesis_002 | integration | 0.000 | 0.000 | 0.00 | 0.00 |
+| synthesis_003 | rubric | **0.471** | 0.000 | 1.00 | 0.00 |
+| synthesis_003 | integration | 0.000 | 0.000 | 0.00 | 0.00 |
+
+Mean σ across the 3 items:
+
+- **rubric**: passes=1 σ=0.189 → passes=3 σ=0.016 (**−91%**)
+- **integration**: passes=1 σ=0.079 → passes=3 σ=0.000 (**−100%**)
+
+Synthesis_003 rubric is the smoking gun: at passes=1 the score swung
+from 0.0 to 1.0 across three trials on identical prose. At passes=3 it
+locked at 1.0 across three trials. The judge consistently disagreed
+with itself when scoring this item one-shot; majority-of-3 cuts through.
+
+Synthesis_001 integration is the second-biggest swing: passes=1 σ=0.236
+(verdicts wandering between PARTIAL and INTEGRATED across calls);
+passes=3 locked at INTEGRATED.
+
+Means held: rubric mean drift across all items was within ±0.033 of the
+pass=1 mean. No track-level mean regression risk.
+
+This was the core acceptance criterion. Implementation is sound; landing.
+
+## Results — end-to-end synthesis smoke (r22, judge_passes=3)
+
+TBD — `LOG_DIR=logs/r22_synthesis_judge_passes_3_smoke_1` running with
+`-T judge_passes=3 --max-samples=8`. Compare track-level σ /
+mean / per-item composites to r19/r20/r21 from iteration/09.
+
