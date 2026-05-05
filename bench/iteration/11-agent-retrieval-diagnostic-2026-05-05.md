@@ -70,9 +70,24 @@ failures, and should be fixed in the items file.
 
 ### 2. `agent_no_answer` detector on the agent's prose
 
-A small regex set: `re.search(r"(does not give|paper does not contain|
-no specific (probability|number)|not stated in)", answer)`. If matched,
-flag the sample as `agent_says_no_answer=True`.
+Word-boundary-anchored regex with specific verb / noun completions —
+unanchored alternations false-positive on quoted phrases like "digital
+error correction does not protect" (a real-world example from r25
+arguments_002 with an early prototype):
+
+```python
+NO_ANSWER_RE = re.compile(
+    r'\b(?:'
+    r'(?:paper|corpus|source) (?:does not|doesn\'?t)|'
+    r'does not (?:give|provide|contain|state|mention|specify|directly address)|'
+    r'doesn\'?t (?:give|provide|contain|state|mention|specify|directly address)|'
+    r'not (?:stated|provided|specified|given|mentioned)|'
+    r'no specific (?:probability|number|figure|answer|value|estimate|credence)|'
+    r'(?:paper|corpus|source) is silent on'
+    r')\b',
+    re.IGNORECASE
+)
+```
 
 Compose: items where `answer_in_corpus=True AND agent_says_no_answer=True`
 are **agent retrieval failures** — the answer was retrievable but the
@@ -84,7 +99,13 @@ agent_retrieval_failure_rate =
 ```
 
 Iteration/09 estimated `claim_recall_001` and `claim_recall_004` are
-the dominant cases. The metric should match that estimate at first run.
+the dominant cases. Validation against r19/r20/r21/r25 logs (72
+samples total) at the regex above: **1 true positive** (r20
+`claim_recall_001`, exactly the iteration/09 case), **0 false
+positives**. claim_recall_004 was *not* flagged across any run —
+correctly, because the agent there confidently reports the *wrong*
+number rather than declining to answer (see `iteration/09` for the
+"agent confidently wrong" failure-mode distinction).
 
 ## Wiring
 
