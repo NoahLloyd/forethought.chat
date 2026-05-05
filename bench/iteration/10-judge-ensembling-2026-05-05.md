@@ -128,9 +128,89 @@ pass=1 mean. No track-level mean regression risk.
 
 This was the core acceptance criterion. Implementation is sound; landing.
 
-## Results — end-to-end synthesis smoke (r22, judge_passes=3)
+## Results — end-to-end synthesis smokes at judge_passes=3 (r22, r23, r24)
 
-TBD — `LOG_DIR=logs/r22_synthesis_judge_passes_3_smoke_1` running with
-`-T judge_passes=3 --max-samples=8`. Compare track-level σ /
-mean / per-item composites to r19/r20/r21 from iteration/09.
+Three full synthesis-track runs at judge_passes=3 against the same code
+(r19/r20/r21 are the passes=1 baselines from iteration/09). All four
+runs use the same agent / item set; only `judge_passes` differs.
+
+### Per-item composites (3 runs each setting)
+
+| Item | r19 | r20 | r21 | mean p=1 | σ p=1 | r22 | r23 | r24 | mean p=3 | σ p=3 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| synthesis_001 | 0.961 | 0.823 | 0.908 | 0.897 | **0.057** | 0.892 | 0.893 | 0.951 | 0.912 | 0.028 |
+| synthesis_002 | 0.877 | 0.862 | **0.640** | 0.793 | **0.108** | 0.883 | 0.863 | 0.930 | 0.892 | 0.028 |
+| synthesis_003 | 0.912 | 0.955 | 0.978 | 0.948 | 0.027 | 0.949 | 0.956 | 0.933 | 0.946 | 0.009 |
+
+### Synthesis_002 rubric verdicts (the smoking-gun item)
+
+| Run | passes | Verdicts | frac_at_least_partial | composite |
+|---|---|---|---|---|
+| r19 | 1 | M, Pa, P, P, P | 0.700 | 0.877 |
+| r20 | 1 | Pa, Pa, P, P, P | 0.800 | 0.862 |
+| r21 | 1 | **M, M, M, M, M** | **0.000** ← outlier | **0.640** |
+| r22 | 3 | M, Pa, P, P, P | 0.700 | 0.883 |
+| r23 | 3 | M, P, P, P, P | 0.800 | 0.863 |
+| r24 | 3 | P, Pa, P, P, P | 0.900 | 0.930 |
+
+The r21 "5/5 MISSING" outlier — the case iteration/09 used to motivate
+this iteration — does not recur in any of the three passes=3 trials.
+The rubric judge at passes=3 lands inside the r19/r20 verdict envelope
+or above. Per-item σ on synthesis_002: **0.108 → 0.028 (-74%)**.
+
+### Composite mean / σ summary
+
+| Setting | runs | composite mean | composite σ |
+|---|---|---|---|
+| passes=1 | r19, r20, r21 | 0.879 | **0.031** |
+| passes=3 | r22, r23, r24 | 0.917 | **0.015** |
+
+Composite σ at passes=3 is ~52% lower than at passes=1. Per
+`06-validation-protocol.md`'s "σ ≤ 0.025 detects a 0.05 shift at
+p<0.05" target, passes=3 (σ=0.015) clears that bar; passes=1
+(σ=0.031) does not.
+
+Mean composite at passes=3 (0.917) is **+0.038** above passes=1
+(0.879). The probe (which holds prose constant) showed median-of-3
+doesn't shift the *judge* score distribution mean materially, only its
+σ — so this 0.038 lift mostly reflects (a) agent-prose variance across
+runs and (b) median-of-3 muting the *downward* tail (r21's 0.640) more
+heavily than the upward tail. Either reading is fine for iteration/10:
+no regression, σ reduction confirmed.
+
+### Cost overhead
+
+Wallclock per synthesis-only smoke (3 items, 8 max samples): roughly
+1m45s at passes=1 vs 3m00s at passes=3 — ~70% wallclock overhead at
+the synthesis track. Tolerable for the σ reduction.
+
+## Outcome
+
+Iteration/10 lands. Median-of-3 on the rubric and integration judges
+takes the synthesis-track composite σ from 0.031 (passes=1) to 0.015
+(passes=3), under the 0.025 detection bar from iteration/06, **without
+regressing the mean** (mean shifted up +0.038, driven by muted
+downside outliers). The probe (judge-only variance) showed -91% σ on
+the rubric judge and -100% σ on the integration judge holding prose
+constant — direct attribution of the σ-reduction to median-of-N.
+
+The smoking-gun synthesis_002 case from iteration/09 (r21's 5/5
+MISSING) is gone across all three passes=3 trials.
+
+Next iteration candidates (per iteration/09's list):
+
+1. **Wire judge_passes into arguments-track full benches.** The
+   arguments scorer uses the same rubric judge (0.6-weighted), so this
+   should be next-cheapest win. The probe + smoke design used here
+   transfers directly.
+2. **Switch `numeric_judge` and `verbal_match` to API-direct
+   temperature=0.** These drive the 0.5/0.6-weighted correctness
+   sub-scorer in claim_recall and definitions; iteration/09 flagged
+   them as best targets for deterministic execution rather than
+   median-of-N (binary right/wrong verdicts; majority vote on a
+   deterministic call is wasted spend).
+3. **Address agent-side retrieval variance for claim_recall_001-style
+   items.** The `is_present_in_corpus` precondition idea from
+   iteration/09 #3.
+
 

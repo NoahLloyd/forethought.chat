@@ -53,3 +53,32 @@ Ran two more full bench runs at the same code to estimate variance properly. Als
 **`claim_recall_004` is consistently *failing*** at composite ~0.40 (σ=0.014) — agent reliably can't surface the "geometric mean of 5X" passage despite the chunk being in the corpus and the agent correctly identifying the right paper. BM25 isn't returning that chunk on the agent's queries; agent ends up reporting 10X / 28X / 8X instead. Real agent-retrieval failure mode, not noise.
 
 **Fabrication is 0% across all 3 confirmation runs**, but the r16→r19 cliff isn't what r19's note above claimed. Trajectory on arguments fab%: r15=8.2% → r16=**16.4%** (chunk_text + prompt rewrite cited more aggressively, often quoting markdown-link passages that the matcher couldn't find in the stripped `record.text`) → commit `841c3a4` fixed `corpus/loader.py::find_passage` to try both `record.text` and `record.body` → r19=0%. **The r16→r19 fab drop is the bench-side matcher fix, not the prompt.** The prompt rewrite is responsible for ~70% of the r15→r19 valid% gain (26→73 step) and pushed fab *up*; the matcher fix dropped fab to 0% and re-counted the previously-fab citations as valid (the 73→92 step is mostly recategorization). r19's "fabrication dropped due to citation discipline" attribution is backwards — the discipline rules improve `valid%`, not `fab%`. Full decomposition in iteration/09.
+
+## r22–r24 — judge_passes=3 (median-of-3) on synthesis (2026-05-05)
+
+Per `iteration/10-judge-ensembling-2026-05-05.md`. Added a `passes` parameter to `score_required_elements` and `score_integration` — when `passes>1` the judge is called N times in parallel (`asyncio.gather`) and the per-element / per-item verdict is the majority across passes (tie-break by mean score). Wired through `synthesis` and `arguments` @tasks via a `judge_passes` kwarg; `run_librarian.sh` now accepts `JUDGE_PASSES=N`. Default 1 — opt-in.
+
+**Variance probe** (`scripts/probe_judge_variance.py`, holds r19 agent prose constant, n_trials=3 each side):
+
+- **rubric**: passes=1 σ=0.189 → passes=3 σ=0.016 (**−91%**)
+- **integration**: passes=1 σ=0.079 → passes=3 σ=0.000 (**−100%**)
+
+Direct attribution: median-of-N kills judge variance. The 0.471-σ swing on `synthesis_003` rubric (passes=1) collapsed to 0.000 at passes=3.
+
+**End-to-end smokes** (synthesis-only, 3 runs each setting):
+
+| Item | mean p=1 | σ p=1 | mean p=3 | σ p=3 |
+|---|---|---|---|---|
+| synthesis_001 | 0.897 | 0.057 | 0.912 | 0.028 |
+| synthesis_002 | **0.793** | **0.108** | **0.892** | **0.028** |
+| synthesis_003 | 0.948 | 0.027 | 0.946 | 0.009 |
+| **composite** | **0.879** | **0.031** | **0.917** | **0.015** |
+
+Composite σ halved (0.031 → 0.015), under iteration/06's 0.025 detection bar. Mean lifted +0.038, driven by muting r21's downward outlier — synthesis_002 went from "0.640 from a 5/5 MISSING rubric pass" (passes=1) to a 0.863–0.930 envelope (passes=3, all three trials). The smoking-gun outlier from iteration/09 is gone.
+
+**Cost**: ~70% wallclock overhead at the synthesis track (~1m45s → ~3m). Only synthesis + arguments tracks honor `judge_passes` today; definitions and claim_recall accept the kwarg as a no-op so a combined `inspect eval` can pass one `-T judge_passes=N` flag.
+
+**Next** (per iteration/10 outcome section):
+- Run a passes=3 full bench (all 4 tracks) to confirm arguments σ also drops; arguments uses the same rubric judge at 0.6 weight so the win should be larger there.
+- Switch `numeric_judge` / `verbal_match` to API-direct `temperature=0` for claim_recall + definitions (binary verdicts; median-of-N is wasted spend on a deterministic call).
+- Address agent-side variance for `claim_recall_001` (the iteration/09 #3 idea — `is_present_in_corpus` precondition check).
