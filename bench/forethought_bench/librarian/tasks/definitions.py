@@ -97,8 +97,15 @@ def definitions(
     tier: Tier = "smoke",
     include_held_out: bool = False,
     judge_model: str = "opus",
+    judge_passes: int = 1,
 ) -> Task:
-    """Librarian / definitions: framework & concept recall."""
+    """Librarian / definitions: framework & concept recall.
+
+    ``judge_passes`` is accepted for parity with synthesis / arguments so a
+    combined ``inspect eval`` invocation can pass one ``-T`` flag for the
+    whole run. Definitions doesn't use a verdict-prone scorer that benefits
+    from median-of-N today; the kwarg is a no-op here.
+    """
     resolved = resolve_content_dir(content_dir)
     corpus = Corpus.from_directory(resolved)
     judge = build_judge(judge_model)
@@ -118,6 +125,7 @@ def definitions(
         "agent": agent.name,
         "judge": judge.name,
         "judge_model_alias": judge_model,
+        "judge_passes": judge_passes,
     }
     return Task(
         dataset=items_to_dataset(items),

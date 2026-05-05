@@ -115,6 +115,7 @@ def claim_recall(
     tier: Tier = "smoke",
     include_held_out: bool = False,
     judge_model: str = "opus",
+    judge_passes: int = 1,
 ) -> Task:
     """Librarian / claim_recall: specific claim recall.
 
@@ -132,6 +133,11 @@ def claim_recall(
 
     Set FOREBENCH_USE_API=1 to bill against the API key (faster, costs money)
     instead of Claude Code subscription billing.
+
+    ``judge_passes`` is accepted for parity with synthesis / arguments so a
+    combined ``inspect eval`` invocation can pass one ``-T`` flag for the
+    whole run; claim_recall doesn't expose a verdict-prone scorer that
+    benefits from median-of-N today, so the kwarg is a no-op here.
     """
     resolved = resolve_content_dir(content_dir)
     corpus = Corpus.from_directory(resolved)
@@ -152,6 +158,7 @@ def claim_recall(
         "agent": agent.name,
         "judge": judge.name,
         "judge_model_alias": judge_model,
+        "judge_passes": judge_passes,
     }
     return Task(
         dataset=items_to_dataset(items),

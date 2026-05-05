@@ -49,7 +49,7 @@ from forethought_bench.scoring import (
 
 
 @scorer(metrics=[mean()])
-def synthesis_scorer(corpus: Corpus, judge: Judge):
+def synthesis_scorer(corpus: Corpus, judge: Judge, *, judge_passes: int = 1):
     async def score(state: TaskState, target: Target) -> Score:
         item = Item.model_validate(state.metadata["item"])
         output = AgentOutput.model_validate(state.metadata["agent_output"])
@@ -59,11 +59,13 @@ def synthesis_scorer(corpus: Corpus, judge: Judge):
 
         relationship = str(item.metadata.get("relationship", "complements"))
         integration = await score_integration(
-            item.question, output.final_answer, relationship, judge
+            item.question, output.final_answer, relationship, judge,
+            passes=judge_passes,
         )
 
         rubric = await score_required_elements(
-            item.question, output.final_answer, item.required_elements, judge
+            item.question, output.final_answer, item.required_elements, judge,
+            passes=judge_passes,
         )
 
         refined = await refine_citation_claims(output, judge)
@@ -112,8 +114,14 @@ def synthesis(
     tier: Tier = "smoke",
     include_held_out: bool = False,
     judge_model: str = "opus",
+    judge_passes: int = 1,
 ) -> Task:
-    """Librarian / synthesis: cross-corpus synthesis."""
+    """Librarian / synthesis: cross-corpus synthesis.
+
+    ``judge_passes>1`` runs the verdict-prone sub-scorers (rubric,
+    integration) N times per item and majority-votes the verdict. See
+    ``iteration/10-judge-ensembling-2026-05-05.md``.
+    """
     resolved = resolve_content_dir(content_dir)
     corpus = Corpus.from_directory(resolved)
     judge = build_judge(judge_model)
@@ -133,10 +141,11 @@ def synthesis(
         "agent": agent.name,
         "judge": judge.name,
         "judge_model_alias": judge_model,
+        "judge_passes": judge_passes,
     }
     return Task(
         dataset=items_to_dataset(items),
         solver=agent_solver(agent),
-        scorer=synthesis_scorer(corpus, judge),
+        scorer=synthesis_scorer(corpus, judge, judge_passes=judge_passes),
         metadata=metadata,
     )

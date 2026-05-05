@@ -19,9 +19,11 @@ from forethought_bench.schema import (
     NumericTolerance,
     RetrievedPassage,
 )
+from forethought_bench.librarian.scoring.synthesis import score_integration
 from forethought_bench.scoring.answer_support import score_answer_support
 from forethought_bench.scoring.claim_anchoring import refine_citation_claims
 from forethought_bench.scoring.numeric_judge import score_numeric_judge
+from forethought_bench.scoring.rubric import score_required_elements
 
 
 class StubJudge(Judge):
@@ -421,3 +423,193 @@ async def test_answer_support_centers_window_on_snippet_for_long_doc() -> None:
     )
     assert seen_user
     assert snippet in seen_user[0], "window should be centered on the snippet"
+
+
+# --- iteration/10: median-of-N for verdict-prone scorers --------------------
+
+
+class _SequenceJudge(Judge):
+    """Returns one fixed response per call, in order. Tracks call count."""
+
+    def __init__(self, responses: list[str], model: str = "seq") -> None:
+        self._responses = list(responses)
+        self.calls = 0
+        self.model = model
+        self.name = f"seq:{model}"
+
+    async def complete(self, req: JudgeRequest) -> JudgeResponse:
+        i = self.calls
+        self.calls += 1
+        text = self._responses[i] if i < len(self._responses) else self._responses[-1]
+        return JudgeResponse(text=text, model=self.model, usage={})
+
+
+def _rubric_response(verdicts: list[str], rationale_prefix: str = "r") -> str:
+    """Build a JSON rubric response with one entry per verdict."""
+    import json as _json
+    return _json.dumps({
+        "results": [
+            {"element_index": i, "verdict": v, "rationale": f"{rationale_prefix}{i}"}
+            for i, v in enumerate(verdicts)
+        ]
+    })
+
+
+@pytest.mark.asyncio
+async def test_required_elements_passes_1_unchanged() -> None:
+    judge = _SequenceJudge([_rubric_response(["PRESENT", "MISSING"])])
+    res = await score_required_elements(
+        "q", "answer", ["e0", "e1"], judge, passes=1,
+    )
+    assert judge.calls == 1
+    assert [e.verdict for e in res.elements] == ["PRESENT", "MISSING"]
+    assert res.fraction_at_least_partial == 0.5
+
+
+@pytest.mark.asyncio
+async def test_required_elements_passes_3_majority_per_element() -> None:
+    """Two-of-three majority on per-element verdicts."""
+    judge = _SequenceJudge([
+        _rubric_response(["PRESENT", "MISSING"]),
+        _rubric_response(["PRESENT", "PARTIAL"]),
+        _rubric_response(["MISSING", "PARTIAL"]),
+    ])
+    res = await score_required_elements(
+        "q", "answer", ["e0", "e1"], judge, passes=3,
+    )
+    assert judge.calls == 3
+    # Element 0: PRESENT, PRESENT, MISSING -> PRESENT
+    # Element 1: MISSING, PARTIAL, PARTIAL -> PARTIAL
+    assert [e.verdict for e in res.elements] == ["PRESENT", "PARTIAL"]
+    assert res.fraction_present == 0.5
+    assert res.fraction_at_least_partial == 0.75
+
+
+@pytest.mark.asyncio
+async def test_required_elements_passes_3_three_way_tie_breaks_to_partial() -> None:
+    """When all three verdicts are different, mean score = 0.5 -> PARTIAL."""
+    judge = _SequenceJudge([
+        _rubric_response(["PRESENT"]),
+        _rubric_response(["PARTIAL"]),
+        _rubric_response(["MISSING"]),
+    ])
+    res = await score_required_elements(
+        "q", "answer", ["e0"], judge, passes=3,
+    )
+    assert [e.verdict for e in res.elements] == ["PARTIAL"]
+
+
+@pytest.mark.asyncio
+async def test_required_elements_synthesis_002_scenario() -> None:
+    """Smoking-gun case from iteration/09: r19/r20 graded the synthesis_002
+    answer 5/5 PRESENT, r21 graded the same prose 5/5 MISSING. Median-of-3
+    should resolve all five elements to PRESENT (2-of-3 majority each)."""
+    judge = _SequenceJudge([
+        _rubric_response(["PRESENT"] * 5),
+        _rubric_response(["PRESENT"] * 5),
+        _rubric_response(["MISSING"] * 5),
+    ])
+    res = await score_required_elements(
+        "q", "answer", [f"e{i}" for i in range(5)], judge, passes=3,
+    )
+    assert all(e.verdict == "PRESENT" for e in res.elements)
+    assert res.fraction_at_least_partial == 1.0
+
+
+@pytest.mark.asyncio
+async def test_required_elements_rationale_borrowed_from_winning_pass() -> None:
+    """Merged rationale should come from a pass that voted with the winner,
+    not the first pass blindly. Catches the failure mode where the merged
+    output 'wins' PRESENT but explains itself with a MISSING rationale."""
+    judge = _SequenceJudge([
+        _rubric_response(["MISSING"], rationale_prefix="loser_"),
+        _rubric_response(["PRESENT"], rationale_prefix="winner_"),
+        _rubric_response(["PRESENT"], rationale_prefix="winner_alt_"),
+    ])
+    res = await score_required_elements(
+        "q", "answer", ["e0"], judge, passes=3,
+    )
+    assert res.elements[0].verdict == "PRESENT"
+    assert res.elements[0].rationale.startswith("winner")
+
+
+@pytest.mark.asyncio
+async def test_required_elements_passes_3_calls_in_parallel() -> None:
+    """The N judge calls must overlap. asyncio.gather is supposed to schedule
+    them concurrently; without it the wallclock cost would be N×."""
+    import asyncio as _asyncio
+
+    in_flight = 0
+    max_in_flight = 0
+
+    class _ParallelJudge(Judge):
+        model = "p"
+        name = "p"
+
+        async def complete(self, req: JudgeRequest) -> JudgeResponse:
+            nonlocal in_flight, max_in_flight
+            in_flight += 1
+            max_in_flight = max(max_in_flight, in_flight)
+            await _asyncio.sleep(0.01)
+            in_flight -= 1
+            return JudgeResponse(
+                text=_rubric_response(["PRESENT"]),
+                model=self.model,
+                usage={},
+            )
+
+    await score_required_elements(
+        "q", "answer", ["e0"], _ParallelJudge(), passes=3,
+    )
+    assert max_in_flight == 3
+
+
+def _integration_response(verdict: str, rationale: str = "r") -> str:
+    import json as _json
+    return _json.dumps({"verdict": verdict, "rationale": rationale})
+
+
+@pytest.mark.asyncio
+async def test_integration_passes_1_unchanged() -> None:
+    judge = _SequenceJudge([_integration_response("INTEGRATED")])
+    res = await score_integration("q", "a", "complements", judge, passes=1)
+    assert judge.calls == 1
+    assert res.verdict == "INTEGRATED"
+    assert res.score == 1.0
+
+
+@pytest.mark.asyncio
+async def test_integration_majority() -> None:
+    judge = _SequenceJudge([
+        _integration_response("INTEGRATED"),
+        _integration_response("PARTIAL"),
+        _integration_response("INTEGRATED"),
+    ])
+    res = await score_integration("q", "a", "complements", judge, passes=3)
+    assert judge.calls == 3
+    assert res.verdict == "INTEGRATED"
+
+
+@pytest.mark.asyncio
+async def test_integration_three_way_tie_breaks_to_partial() -> None:
+    judge = _SequenceJudge([
+        _integration_response("INTEGRATED", rationale="r1"),
+        _integration_response("PARTIAL", rationale="r2"),
+        _integration_response("LIST_ONLY", rationale="r3"),
+    ])
+    res = await score_integration("q", "a", "complements", judge, passes=3)
+    assert res.verdict == "PARTIAL"
+    assert res.rationale == "r2"  # rationale from the matching pass
+
+
+@pytest.mark.asyncio
+async def test_integration_invalid_verdict_falls_back_to_list_only() -> None:
+    """Robustness against malformed judge JSON: median-of-N must still work
+    when one pass returns garbage."""
+    judge = _SequenceJudge([
+        _integration_response("BANANA"),  # invalid -> LIST_ONLY
+        _integration_response("INTEGRATED"),
+        _integration_response("INTEGRATED"),
+    ])
+    res = await score_integration("q", "a", "complements", judge, passes=3)
+    assert res.verdict == "INTEGRATED"

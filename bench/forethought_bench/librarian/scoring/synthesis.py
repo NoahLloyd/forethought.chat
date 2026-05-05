@@ -10,14 +10,22 @@ Both ride on top of required_elements scoring, which is shared with Track 3.
 
 from __future__ import annotations
 
+import asyncio
 import json
 import re
+from collections import Counter
 from urllib.parse import urlparse
 
 from pydantic import BaseModel
 
 from forethought_bench.judges import Judge, JudgeRequest
 from forethought_bench.schema import AgentOutput
+
+_INTEGRATION_SCORES: dict[str, float] = {
+    "INTEGRATED": 1.0,
+    "PARTIAL": 0.5,
+    "LIST_ONLY": 0.0,
+}
 
 INTEGRATION_JUDGE_SYSTEM = """\
 You grade whether an agent's answer INTEGRATES across multiple sources or
@@ -83,26 +91,72 @@ def score_citation_recall(
 
 
 async def score_integration(
-    question: str, answer: str, relationship: str, judge: Judge
+    question: str,
+    answer: str,
+    relationship: str,
+    judge: Judge,
+    *,
+    passes: int = 1,
 ) -> IntegrationResult:
-    resp = await judge.complete(
-        JudgeRequest(
-            system=INTEGRATION_JUDGE_SYSTEM,
-            user=INTEGRATION_JUDGE_USER_TEMPLATE.format(
-                question=question, relationship=relationship, answer=answer
-            ),
-            max_tokens=400,
-        )
+    """Grade integration quality (INTEGRATED / PARTIAL / LIST_ONLY).
+
+    With ``passes > 1`` the judge is called N times in parallel and the
+    verdict is the majority across passes; ties resolve to the verdict
+    closest to the mean score. See ``score_required_elements`` for the
+    parallel rationale; iteration/10 wires both behind the same
+    ``judge_passes`` task knob.
+    """
+    if passes < 1:
+        passes = 1
+    request = JudgeRequest(
+        system=INTEGRATION_JUDGE_SYSTEM,
+        user=INTEGRATION_JUDGE_USER_TEMPLATE.format(
+            question=question, relationship=relationship, answer=answer
+        ),
+        max_tokens=400,
     )
-    data = _parse_json_loose(resp.text) or {}
-    verdict = str(data.get("verdict", "LIST_ONLY")).upper().strip()
-    if verdict not in {"INTEGRATED", "PARTIAL", "LIST_ONLY"}:
-        verdict = "LIST_ONLY"
-    score = {"INTEGRATED": 1.0, "PARTIAL": 0.5, "LIST_ONLY": 0.0}[verdict]
+
+    if passes == 1:
+        resps = [await judge.complete(request)]
+    else:
+        resps = await asyncio.gather(
+            *(judge.complete(request) for _ in range(passes))
+        )
+
+    parsed = [_parse_one(resp.text) for resp in resps]
+    verdicts = [v for v, _ in parsed]
+    winner = _majority_integration_verdict(verdicts)
+    rationale = next(
+        (r for v, r in parsed if v == winner),
+        parsed[0][1],
+    )
     return IntegrationResult(
-        verdict=verdict,
-        rationale=str(data.get("rationale", ""))[:400],
-        score=score,
+        verdict=winner,
+        rationale=rationale[:400],
+        score=_INTEGRATION_SCORES[winner],
+    )
+
+
+def _parse_one(text: str) -> tuple[str, str]:
+    data = _parse_json_loose(text) or {}
+    verdict = str(data.get("verdict", "LIST_ONLY")).upper().strip()
+    if verdict not in _INTEGRATION_SCORES:
+        verdict = "LIST_ONLY"
+    return verdict, str(data.get("rationale", ""))
+
+
+def _majority_integration_verdict(verdicts: list[str]) -> str:
+    if not verdicts:
+        return "LIST_ONLY"
+    counts = Counter(verdicts)
+    top_count = counts.most_common(1)[0][1]
+    leaders = [v for v, c in counts.items() if c == top_count]
+    if len(leaders) == 1:
+        return leaders[0]
+    mean_score = sum(_INTEGRATION_SCORES[v] for v in verdicts) / len(verdicts)
+    return min(
+        _INTEGRATION_SCORES.keys(),
+        key=lambda v: abs(_INTEGRATION_SCORES[v] - mean_score),
     )
 
 

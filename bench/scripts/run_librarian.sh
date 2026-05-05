@@ -9,6 +9,11 @@ set -euo pipefail
 BASE_URL="${1:-http://localhost:3000}"
 LOG_DIR="${LOG_DIR:-logs/librarian_$(date +%Y%m%d-%H%M%S)}"
 MAX_SAMPLES="${MAX_SAMPLES:-8}"
+# Number of judge calls per verdict-prone sub-scorer (rubric, integration).
+# JUDGE_PASSES=3 enables median-of-3 verdict aggregation per iteration/10.
+# Default 1 keeps historical behavior; only synthesis + arguments tracks
+# honor this knob today.
+JUDGE_PASSES="${JUDGE_PASSES:-1}"
 
 # Resolve absolute paths so this works regardless of cwd.
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -45,12 +50,13 @@ export ANTHROPIC_API_KEY
 cd "$BENCH_DIR"
 
 mkdir -p "$LOG_DIR"
-echo "Mode        -> librarian"
-echo "Bench dir   -> $BENCH_DIR"
-echo "Logs        -> $LOG_DIR"
-echo "Base URL    -> $BASE_URL"
-echo "Max samples -> $MAX_SAMPLES"
-echo "Corpus      -> $FORETHOUGHT_CONTENT_DIR"
+echo "Mode         -> librarian"
+echo "Bench dir    -> $BENCH_DIR"
+echo "Logs         -> $LOG_DIR"
+echo "Base URL     -> $BASE_URL"
+echo "Max samples  -> $MAX_SAMPLES"
+echo "Judge passes -> $JUDGE_PASSES"
+echo "Corpus       -> $FORETHOUGHT_CONTENT_DIR"
 
 TRACKS=(
   forethought_bench/librarian/tasks/claim_recall.py
@@ -61,6 +67,7 @@ TRACKS=(
 
 .venv/bin/inspect eval "${TRACKS[@]}" \
   -T "base_url=$BASE_URL" \
+  -T "judge_passes=$JUDGE_PASSES" \
   --max-samples="$MAX_SAMPLES" \
   --log-dir "$LOG_DIR" \
   --model anthropic/claude-haiku-4-5
